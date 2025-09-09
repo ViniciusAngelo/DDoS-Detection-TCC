@@ -68,7 +68,7 @@ def start_realtime_capture():
                     print(f"[ALERTA] Ataque detectado: {result['attack_type']} | Origem: {packet_data['source']}")
                 else:
                     # Descomente a linha abaixo para ver o tráfego normal
-                    # print(f"[OK] Tráfego normal: {packet_data['protocol']} | {packet_data['source']} -> {packet_data['destination']}")
+                    print(f"[OK] Tráfego normal: {packet_data['protocol']} | {packet_data['source']} -> {packet_data['destination']}")
                     pass
 
             except requests.exceptions.RequestException as e:
