@@ -43,7 +43,14 @@ def health_check():
 @ddos_bp.route("/stats", methods=["GET"])
 def get_stats():
     with detection_stats["lock"]:
-        return jsonify(detection_stats)
+        # Criar uma cópia dos dados sem o lock para serialização JSON
+        stats_copy = {
+            "total_packets": detection_stats["total_packets"],
+            "attacks_detected": detection_stats["attacks_detected"].copy(),
+            "last_detection": detection_stats["last_detection"],
+            "detection_history": detection_stats["detection_history"].copy()
+        }
+        return jsonify(stats_copy)
 
 # Endpoint para detecção de um único pacote
 @ddos_bp.route("/detect", methods=["POST"])
