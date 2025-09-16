@@ -1,216 +1,160 @@
-import pandas as pd
 import joblib
-import time
 import numpy as np
+import pandas as pd
 from datetime import datetime
+import os
 import threading
 import queue
-import collections
+import time
+
+# Caminhos para o modelo e encoder
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "/home/kali/ddos_detection_system/src/ddos_model_otimizado.pkl")
+ENCODER_PATH = os.path.join(os.path.dirname(__file__), "/home/kali/ddos_detection_system/src/label_encoder_otimizado.pkl")
 
 class DDoSDetector:
-    def __init__(self, model_path="/home/kali/ddos_detection_system/src/ddos_model.pkl", encoder_path="/home/kali/ddos_detection_system/src/label_encoder.pkl", window_size=1.0):
-        """
-        Inicializa o detector de DDoS carregando o modelo treinado.
-        """
-        self.model = joblib.load(model_path)
-        self.label_encoder = joblib.load(encoder_path)
-        self.packet_queue = queue.Queue()
+    def __init__(self):
+        self.model = None
+        self.label_encoder = None
+        self.load_model()
+        self.packet_queue = queue.Queue() # Fila para pacotes a serem processados
         self.is_monitoring = False
-        self.detection_threshold = 0.9  # Limiar de confiança para detecção
-        self.window_size = window_size # Tamanho da janela em segundos
-        self.packet_history = collections.deque() # Usar deque para histórico eficiente
-        self.lock = threading.Lock() # Para acesso seguro ao histórico
+        self.monitoring_thread = None
+        self.detection_stats = {
+            "total_packets": 0,
+            "attacks_detected": {"SynFlood": 0, "ICMPFlood": 0, "UDPFlood": 0, "Normal": 0},
+            "last_detection": None,
+            "detection_history": []
+        }
+        self.stats_lock = threading.Lock() # Lock para proteger detection_stats
 
-    def _extract_features_from_window(self, current_packet_time):
-        """
-        Extrai features de uma janela de tempo do histórico de pacotes.
-        """
-        with self.lock:
-            # Remover pacotes antigos fora da janela
-            while self.packet_history and self.packet_history[0]["time"] < (current_packet_time - self.window_size):
-                self.packet_history.popleft()
+    def load_model(self):
+        try:
+            self.model = joblib.load(MODEL_PATH)
+            self.label_encoder = joblib.load(ENCODER_PATH)
+            print("DDoSDetector: Modelo e encoder carregados com sucesso!")
+        except Exception as e:
+            print(f"DDoSDetector: Erro ao carregar modelo ou encoder: {e}")
+            self.model = None
+            self.label_encoder = None
+
+    def preprocess_packet(self, packet_data):
+        try:
+            # Extrair as 8 features que o modelo espera
+            # Baseado nos arquivos preprocess_data.py e train_model.py do contexto original
+            # As features esperadas são: Time, Length, SourcePort, DestPort, Protocol_ICMP, Protocol_TCP, Protocol_UDP, Protocol_Other
             
-            # Criar um DataFrame temporário a partir do histórico
-            if not self.packet_history:
-                # Se não há histórico, retornar features zeradas ou padrão
-                return np.array([[0, 0, 0, 0, 0, 0, 0, 0]])
-
-            window_df = pd.DataFrame(list(self.packet_history))
-
-            # Calcular features
-            num_packets = len(window_df)
-            total_length = window_df["length"].sum()
-            avg_length = window_df["length"].mean()
-            std_length = window_df["length"].std() if num_packets > 1 else 0
+            time_val = float(packet_data.get("time", 0.0))
+            length_val = int(packet_data.get("length", 0))
             
-            protocol_counts = window_df["protocol"].value_counts()
-            tcp_packets = protocol_counts.get("TCP", 0)
-            udp_packets = protocol_counts.get("UDP", 0)
-            icmp_packets = protocol_counts.get("ICMP", 0)
+            # Para SourcePort e DestPort, vamos tentar extrair do 'info' ou usar um valor padrão
+            # Isso é uma simplificação, idealmente tshark deveria extrair esses campos diretamente
+            source_port = 0
+            dest_port = 0
+            info = packet_data.get("info", "")
+            if "\u2192" in info: # Verifica se há o separador de porta
+                try:
+                    parts = info.split(" ")
+                    if len(parts) > 0 and parts[0].isdigit():
+                        source_port = int(parts[0])
+                    if len(parts) > 2 and parts[2].isdigit():
+                        dest_port = int(parts[2])
+                except ValueError:
+                    pass # Ignora erro de conversão e mantém 0
 
-            num_unique_src_ips = len(window_df["source"].unique())
+            # Features one-hot encoded para Protocolo
+            protocol = packet_data.get("protocol", "Other").upper()
+            protocol_icmp = 1 if protocol == "ICMP" else 0
+            protocol_tcp = 1 if protocol == "TCP" else 0
+            protocol_udp = 1 if protocol == "UDP" else 0
+            protocol_other = 1 if protocol not in ["ICMP", "TCP", "UDP"] else 0
 
-            features = np.array([[
-                num_packets,
-                total_length,
-                avg_length,
-                std_length,
-                tcp_packets,
-                udp_packets,
-                icmp_packets,
-                num_unique_src_ips
-            ]])
+            features = np.array([[time_val, length_val, source_port, dest_port, 
+                                  protocol_icmp, protocol_tcp, protocol_udp, protocol_other]])
             return features
+        except Exception as e:
+            raise ValueError(f"Erro no pré-processamento do pacote: {e}")
 
     def predict_attack(self, packet_data):
-        """
-        Prediz se um pacote representa um ataque DDoS usando features de janela.
-        
-        Args:
-            packet_data (dict): Dados do pacote (deve incluir 'time', 'length', 'protocol', 'source')
-            
-        Returns:
-            tuple: (tipo_ataque, probabilidade, is_attack)
-        """
-        # Adicionar o pacote atual ao histórico ANTES de extrair features para ele
-        with self.lock:
-            self.packet_history.append(packet_data)
-
-        features = self._extract_features_from_window(packet_data["time"])
-        
         if self.model is None or self.label_encoder is None:
-            return "Unknown", 0.0, False
-
-        probabilities = self.model.predict_proba(features)[0]
-        predicted_label_encoded = self.model.predict(features)[0]
+            return {"error": "Modelo não carregado no detector"}
         
-        predicted_label = self.label_encoder.inverse_transform([predicted_label_encoded])[0]
-        confidence = probabilities[predicted_label_encoded]
-
-        is_attack = predicted_label != "Normal" and confidence >= self.detection_threshold
-        
-        return predicted_label, confidence, is_attack
+        try:
+            features = self.preprocess_packet(packet_data)
+            prediction = self.model.predict(features)[0]
+            probabilities = self.model.predict_proba(features)[0]
+            
+            attack_type = self.label_encoder.inverse_transform([prediction])[0]
+            confidence = float(max(probabilities))
+            
+            return {
+                "attack_type": attack_type,
+                "confidence": confidence,
+                "is_attack": attack_type != "Normal",
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            return {"error": f"Erro na predição do pacote: {str(e)}"}
 
     def add_packet(self, packet_data):
-        """
-        Adiciona um pacote à fila para processamento assíncrono.
-        """
         self.packet_queue.put(packet_data)
 
-    def _monitor_thread(self):
-        """
-        Thread que processa pacotes da fila e atualiza estatísticas.
-        """
+    def _monitor_packets(self):
         while self.is_monitoring:
             try:
-                packet = self.packet_queue.get(timeout=1) # Espera por 1 segundo
+                packet_data = self.packet_queue.get(timeout=1) # Espera por 1 segundo
+                result = self.predict_attack(packet_data)
                 
-                # Adicionar timestamp se não tiver (para simulações)
-                if "time" not in packet:
-                    packet["time"] = time.time()
-                if "protocol" not in packet:
-                    packet["protocol"] = "Unknown"
-                if "source" not in packet:
-                    packet["source"] = "Unknown"
-                if "length" not in packet:
-                    packet["length"] = 0
-
-                predicted_attack, confidence, is_attack = self.predict_attack(packet)
-                
-                # Atualizar estatísticas globais (usadas pela API)
-                from src.routes.ddos_detection import detection_stats # Importar aqui para evitar circular
-                
-                with detection_stats["lock"]:
-                    detection_stats["total_packets"] += 1
-                    if is_attack:
-                        detection_stats["attacks_detected"][predicted_attack] += 1
-                        detection_stats["last_detection"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        detection_stats["detection_history"].append({
-                            "timestamp": detection_stats["last_detection"],
-                            "type": predicted_attack,
-                            "confidence": f"{confidence:.2%}",
-                            "source": packet.get("source", "N/A"),
-                            "destination": packet.get("destination", "N/A")
+                with self.stats_lock:
+                    self.detection_stats["total_packets"] += 1
+                    if "attack_type" in result:
+                        self.detection_stats["attacks_detected"][result["attack_type"]] += 1
+                        if result["is_attack"]:
+                            self.detection_stats["last_detection"] = result["timestamp"]
+                        
+                        # Adicionar ao histórico
+                        self.detection_stats["detection_history"].append({
+                            "timestamp": result["timestamp"],
+                            "type": result["attack_type"],
+                            "confidence": result["confidence"],
+                            "source": packet_data.get("source", "N/A"),
+                            "destination": packet_data.get("destination", "N/A")
                         })
-                        # Manter histórico limitado
-                        if len(detection_stats["detection_history"]) > 50:
-                            detection_stats["detection_history"].pop(0)
+                        # Manter histórico limitado a 100 entradas
+                        if len(self.detection_stats["detection_history"]) > 100:
+                            self.detection_stats["detection_history"].pop(0)
+                    else:
+                        print(f"DDoSDetector: Erro ao processar pacote: {result.get('error', 'Erro desconhecido')}")
 
             except queue.Empty:
                 continue # Nenhuma pacote na fila, continua esperando
             except Exception as e:
-                print(f"Erro no processamento do pacote: {e}")
+                print(f"DDoSDetector: Erro inesperado no monitoramento: {e}")
 
     def start_monitoring(self):
-        """
-        Inicia a thread de monitoramento.
-        """
         if not self.is_monitoring:
             self.is_monitoring = True
-            self.monitor_thread = threading.Thread(target=self._monitor_thread)
-            self.monitor_thread.daemon = True # Permite que a thread termine com o programa principal
-            self.monitor_thread.start()
-            print("Monitoramento de DDoS iniciado.")
+            self.monitoring_thread = threading.Thread(target=self._monitor_packets)
+            self.monitoring_thread.daemon = True # Permite que a thread termine com o programa principal
+            self.monitoring_thread.start()
+            print("DDoSDetector: Monitoramento de pacotes iniciado.")
 
     def stop_monitoring(self):
-        """
-        Para a thread de monitoramento.
-        """
         if self.is_monitoring:
             self.is_monitoring = False
-            self.monitor_thread.join(timeout=5) # Espera a thread terminar
-            if self.monitor_thread.is_alive():
-                print("Aviso: Thread de monitoramento não terminou em tempo.")
-            print("Monitoramento de DDoS parado.")
+            if self.monitoring_thread and self.monitoring_thread.is_alive():
+                self.monitoring_thread.join() # Espera a thread terminar
+            print("DDoSDetector: Monitoramento de pacotes parado.")
 
-# Função de simulação de tráfego (para teste local do realtime_detector.py)
-def simulate_network_traffic(detector, data_file="processed_network_traffic.csv"):
-    """
-    Simula tráfego de rede em tempo real usando os dados processados.
-    
-    Args:
-        detector (DDoSDetector): Instância do detector
-        data_file (str): Caminho para o arquivo de dados processados
-    """
-    print("Carregando dados para simulação...")
-    df = pd.read_csv(data_file)
-    
-    print(f"Simulando {len(df)} pacotes de rede...")
-    
-    for index, row in df.iterrows():
-        packet_data = {
-            "time": row["Time"],
-            "length": row["Length"],
-            "protocol": row["Protocol"],
-            "source": row["Source"],
-            "destination": row["Destination"],
-            "info": row["Info"]
-        }
-        
-        # Adicionar pacote ao detector
-        detector.add_packet(packet_data)
-        
-        # Simular delay entre pacotes (ajustável)
-        time.sleep(0.001)  # 1ms entre pacotes
-        
-        # Parar após um número específico de pacotes para demonstração
-        if index >= 1000:  # Simular apenas os primeiros 1000 pacotes
-            break
-    
-    print("Simulação de tráfego concluída.")
+    def get_stats(self):
+        with self.stats_lock:
+            return self.detection_stats
 
-if __name__ == "__main__":
-    # Criar detector
-    detector = DDoSDetector()
-    
-    # Iniciar monitoramento
-    detector.start_monitoring()
-    
-    # Simular tráfego de rede
-    simulate_network_traffic(detector)
-    
-    # Aguardar um pouco para processar todos os pacotes
-    time.sleep(5)
-    
-    # Parar monitoramento
-    detector.stop_monitoring()
+    def reset_stats(self):
+        with self.stats_lock:
+            self.detection_stats = {
+                "total_packets": 0,
+                "attacks_detected": {"SynFlood": 0, "ICMPFlood": 0, "UDPFlood": 0, "Normal": 0},
+                "last_detection": None,
+                "detection_history": []
+            }
+            print("DDoSDetector: Estatísticas resetadas.")

@@ -4,13 +4,14 @@ import json
 import time
 
 # URL da sua API de detecção
-API_URL = "http://localhost:5002/api/ddos/detect" # OU "https://ddos-attack-detector.streamlit.app/api/ddos/detect"
+API_URL = "http://localhost:5002/api/ddos/detect" 
+STATS_API_URL = "http://localhost:5002/api/ddos/stats"
 
 # Comando tshark para capturar e extrair os campos necessários
 TSHARK_COMMAND = [
     'sudo',
     'tshark',
-    '-i', 'eth0',  # <-- MUDE AQUI para sua interface (ex: eth0, wlan0 )
+    '-i', 'eth0',  # <-- MUDE AQUI para sua interface (ex: eth0, wlan0  )
     '-l',
     '-T', 'fields',
     '-e', 'frame.time_epoch',
@@ -46,6 +47,7 @@ def start_realtime_capture():
             parts = line.strip().split('\t')
             
             if len(parts) < 6:
+                print(f"[DEBUG] Linha incompleta do tshark: {line.strip()}")
                 continue
 
             # Monta o dicionário do pacote para enviar à API
@@ -58,18 +60,20 @@ def start_realtime_capture():
                 'info': parts[5] if parts[5] else 'N/A'
             }
 
+            print(f"[DEBUG] Enviando pacote: {json.dumps(packet_data)}")
+
             try:
                 # Envia o pacote para a API
                 response = requests.post(API_URL, json=packet_data, timeout=2)
                 response.raise_for_status() # Lança exceção para erros HTTP (4xx ou 5xx)
                 
+                # A nova API retorna uma mensagem de recebimento, não a detecção imediata
+                # A detecção será obtida via endpoint /stats
                 result = response.json()
-                if result.get('is_attack'):
-                    print(f"[ALERTA] Ataque detectado: {result['attack_type']} | Origem: {packet_data['source']}")
-                else:
-                    # Descomente a linha abaixo para ver o tráfego normal
-                    print(f"[OK] Tráfego normal: {packet_data['protocol']} | {packet_data['source']} -> {packet_data['destination']}")
-                    pass
+                print(f"[DEBUG] Resposta da API (recebimento): {json.dumps(result)}")
+
+                # Para ver as detecções, você precisaria consultar o endpoint /stats
+                # ou verificar o dashboard. O live_capture não vai mais mostrar alertas imediatos.
 
             except requests.exceptions.RequestException as e:
                 print(f"Erro ao enviar para a API: {e}")
@@ -88,5 +92,3 @@ def start_realtime_capture():
 
 if __name__ == '__main__':
     start_realtime_capture()
-
-

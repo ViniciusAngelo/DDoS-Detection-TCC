@@ -1,7 +1,4 @@
 from flask import Blueprint, request, jsonify
-import joblib
-import numpy as np
-import pandas as pd
 from datetime import datetime
 import os
 import threading
@@ -9,26 +6,16 @@ import queue
 import time
 
 # Importar a classe DDoSDetector do arquivo correto
-from .realtime_detector import DDoSDetector
+from src.routes.realtime_detector import DDoSDetector
 
 # Criar blueprint para as rotas de detecção de DDoS
 ddos_bp = Blueprint("ddos", __name__)
 
 # Inicializar o detector de DDoS globalmente
-# O detector agora gerencia seu próprio histórico de pacotes e extração de features
 detector = DDoSDetector()
 
 # Iniciar o monitoramento do detector em uma thread separada
 detector.start_monitoring()
-
-# Armazenamento em memória para estatísticas (agora com um lock para segurança de thread)
-detection_stats = {
-    "total_packets": 0,
-    "attacks_detected": {"SynFlood": 0, "ICMPFlood": 0, "UDPFlood": 0, "Normal": 0},
-    "last_detection": None,
-    "detection_history": [],
-    "lock": threading.Lock() # Adicionar um lock para proteger o acesso concorrente
-}
 
 # Endpoint de saúde da API
 @ddos_bp.route("/health", methods=["GET"])
@@ -42,15 +29,7 @@ def health_check():
 # Endpoint para obter estatísticas em tempo real
 @ddos_bp.route("/stats", methods=["GET"])
 def get_stats():
-    with detection_stats["lock"]:
-        # Criar uma cópia dos dados sem o lock para serialização JSON
-        stats_copy = {
-            "total_packets": detection_stats["total_packets"],
-            "attacks_detected": detection_stats["attacks_detected"].copy(),
-            "last_detection": detection_stats["last_detection"],
-            "detection_history": detection_stats["detection_history"].copy()
-        }
-        return jsonify(stats_copy)
+    return jsonify(detector.get_stats())
 
 # Endpoint para detecção de um único pacote
 @ddos_bp.route("/detect", methods=["POST"])
@@ -63,7 +42,7 @@ def detect_packet():
     detector.add_packet(packet_data)
 
     # Retornar uma resposta imediata (a detecção real acontece na thread do detector)
-    return jsonify({"message": "Pacote recebido para análise", "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")})
+    return jsonify({"message": "Pacote recebido para análise", "timestamp": datetime.now().isoformat()})
 
 # Endpoint para simular tráfego (para testes)
 @ddos_bp.route("/simulate_traffic", methods=["POST"])
@@ -71,15 +50,19 @@ def simulate_traffic_api():
     num_packets = request.json.get("num_packets", 100)
     delay = request.json.get("delay", 0.001)
     
-    csv_path = os.path.join(os.path.dirname(__file__), "..", "..", "processed_network_traffic.csv")
+    csv_path = os.path.join(os.path.dirname(__file__), "..", "processed_network_traffic.csv")
+    
+    # Ajuste o caminho para o arquivo processed_network_traffic.csv
+    # Se o arquivo estiver em /home/ubuntu/processed_network_traffic.csv
+    # csv_path = "/home/ubuntu/processed_network_traffic.csv"
+
     if not os.path.exists(csv_path):
-        return jsonify({"error": "Dados de simulação não encontrados"}), 404
+        return jsonify({"error": "Dados de simulação não encontrados. Verifique o caminho: " + csv_path}), 404
         
     df = pd.read_csv(csv_path)
     sample_data = df.sample(n=min(num_packets, len(df)))
     
     simulated_count = 0
-    detected_attacks_count = 0
 
     for _, row in sample_data.iterrows():
         packet_data = {
@@ -113,3 +96,7 @@ def detect_batch():
 
     return jsonify({"message": f"{len(packets)} pacotes recebidos para análise em lote"})
 
+@ddos_bp.route("/reset-stats", methods=["POST"])
+def reset_stats():
+    detector.reset_stats()
+    return jsonify({"message": "Estatísticas resetadas com sucesso"})
