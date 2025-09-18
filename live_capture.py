@@ -5,19 +5,19 @@ import time
 
 # URL da sua API de detecção
 API_URL = "http://localhost:5002/api/ddos/detect" 
-STATS_API_URL = "http://localhost:5002/api/ddos/stats"
 
-# Comando tshark para capturar e extrair os campos necessários
+# --- COMANDO TSHARK CORRIGIDO ---
+# Usando 'ip.proto' em vez de '_ws.col.Protocol' para uma identificação de protocolo mais confiável.
 TSHARK_COMMAND = [
     'sudo',
     'tshark',
-    '-i', 'eth0',  # <-- MUDE AQUI para sua interface (ex: eth0, wlan0  )
+    '-i', 'eth0',  # <-- MUDE AQUI para sua interface (ex: eth0, wlan0 )
     '-l',
     '-T', 'fields',
     '-e', 'frame.time_epoch',
     '-e', 'ip.src',
     '-e', 'ip.dst',
-    '-e', '_ws.col.Protocol',
+    '-e', 'ip.proto',  # <-- MUDANÇA CRÍTICA AQUI
     '-e', 'frame.len',
     '-e', '_ws.col.Info'
 ]
@@ -30,7 +30,6 @@ def start_realtime_capture():
     print(f"Enviando dados para a API em {API_URL}")
 
     try:
-        # Inicia o processo tshark
         process = subprocess.Popen(
             TSHARK_COMMAND, 
             stdout=subprocess.PIPE, 
@@ -38,48 +37,34 @@ def start_realtime_capture():
             text=True
         )
 
-        # Lê a saída do tshark linha por linha
         for line in iter(process.stdout.readline, ''):
             if not line.strip():
                 continue
 
-            # A saída do tshark é separada por tabs
             parts = line.strip().split('\t')
             
             if len(parts) < 6:
-                print(f"[DEBUG] Linha incompleta do tshark: {line.strip()}")
                 continue
 
             # Monta o dicionário do pacote para enviar à API
+            # O campo 'protocol' agora conterá um número (ex: '6' para TCP)
             packet_data = {
                 'time': float(parts[0]) if parts[0] else 0.0,
                 'source': parts[1] if parts[1] else 'N/A',
                 'destination': parts[2] if parts[2] else 'N/A',
-                'protocol': parts[3] if parts[3] else 'N/A',
+                'protocol': parts[3] if parts[3] else 'N/A', # Agora é um número como string
                 'length': int(parts[4]) if parts[4] else 0,
                 'info': parts[5] if parts[5] else 'N/A'
             }
 
-            print(f"[DEBUG] Enviando pacote: {json.dumps(packet_data)}")
-
             try:
-                # Envia o pacote para a API
                 response = requests.post(API_URL, json=packet_data, timeout=2)
-                response.raise_for_status() # Lança exceção para erros HTTP (4xx ou 5xx)
-                
-                # A nova API retorna uma mensagem de recebimento, não a detecção imediata
-                # A detecção será obtida via endpoint /stats
-                result = response.json()
-                print(f"[DEBUG] Resposta da API (recebimento): {json.dumps(result)}")
-
-                # Para ver as detecções, você precisaria consultar o endpoint /stats
-                # ou verificar o dashboard. O live_capture não vai mais mostrar alertas imediatos.
-
+                response.raise_for_status()
             except requests.exceptions.RequestException as e:
                 print(f"Erro ao enviar para a API: {e}")
             
     except FileNotFoundError:
-        print("Erro: 'tshark' não encontrado. Certifique-se de que o Wireshark está instalado e no PATH do sistema.")
+        print("Erro: 'tshark' não encontrado.")
     except PermissionError:
         print("Erro de permissão. Execute este script com 'sudo'.")
     except KeyboardInterrupt:
