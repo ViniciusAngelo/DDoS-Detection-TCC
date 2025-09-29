@@ -48,13 +48,18 @@ def start_realtime_capture():
 
             # Monta o dicionário do pacote para enviar à API
             # O campo 'protocol' agora conterá um número (ex: '6' para TCP)
+# Em live_capture.py
+
+# ... (dentro do loop 'for line in iter(...)')
+
+            # Monta o dicionário do pacote com as chaves CORRETAS (Primeira letra maiúscula)
             packet_data = {
-                'time': float(parts[0]) if parts[0] else 0.0,
-                'source': parts[1] if parts[1] else 'N/A',
-                'destination': parts[2] if parts[2] else 'N/A',
-                'protocol': parts[3] if parts[3] else 'N/A', # Agora é um número como string
-                'length': int(parts[4]) if parts[4] else 0,
-                'info': parts[5] if parts[5] else 'N/A'
+                'Time': float(parts[0]) if parts[0] else 0.0,
+                'Source': parts[1] if parts[1] else 'N/A',
+                'Destination': parts[2] if parts[2] else 'N/A',
+                'Protocol': parts[3] if parts[3] else 'N/A',
+                'Length': int(parts[4]) if parts[4] else 0,   # <-- CORRIGIDO
+                'Info': parts[5] if parts[5] else 'N/A'
             }
 
             try:
@@ -62,6 +67,8 @@ def start_realtime_capture():
                 response.raise_for_status()
             except requests.exceptions.RequestException as e:
                 print(f"Erro ao enviar para a API: {e}")
+
+# ... (resto do arquivo)
             
     except FileNotFoundError:
         print("Erro: 'tshark' não encontrado.")

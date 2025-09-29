@@ -11,8 +11,8 @@ import time
 # Use caminhos absolutos para garantir que o serviço encontre os arquivos.
 # ATENÇÃO: Verifique se este caminho está correto para o seu ambiente.
 BASE_DIR = "/home/kali/ddos_detection_system/src" 
-MODEL_PATH = os.path.join(BASE_DIR, "ddos_model_final_v12.pkl")
-ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder_final_v12.pkl")
+MODEL_PATH = os.path.join(BASE_DIR, "/home/kali/ddos_detection_system/src/ddos_model_v28.pkl")
+ENCODER_PATH = os.path.join(BASE_DIR, "/home/kali/ddos_detection_system/src/label_encoder_v28.pkl")
 
 class DDoSDetector:
     def __init__(self, window_size=1.0):
@@ -57,57 +57,101 @@ class DDoSDetector:
         """ Adiciona um pacote bruto à fila de processamento. """
         self.packet_queue.put(packet_data)
 
-# No seu realtime_detector.py
+# Dentro da classe DDoSDetector, em realtime_detector.py
 
     def _process_window(self):
         """
-        Versão final, correta e testada: Atualiza o dicionário de estatísticas
-        aninhado corretamente para que o dashboard possa exibir os dados.
+        [VERSÃO DE DEPURAÇÃO] Processa a janela de pacotes com logs detalhados.
         """
         if not self.packet_buffer:
             return
 
-        df_window = pd.DataFrame(self.packet_buffer)
-        num_packets_in_window = len(df_window)
+        # --- 1. DEBUD INICIAL ---
+        print(f"\n[DEBUG] Iniciando _process_window com {len(self.packet_buffer)} pacotes no buffer.")
 
-        proto_map = {'1': 'ICMP', '6': 'TCP', '17': 'UDP'}
-        df_window['protocol'] = df_window['protocol'].map(proto_map)
+        df_window = pd.DataFrame(self.packet_buffer)
         
-        protocol_counts = df_window['protocol'].value_counts()
+        df_window['Length'] = pd.to_numeric(df_window['Length'], errors='coerce')
+        
+        # --- 2. DEBUD ANTES DO DROPNA ---
+        print(f"[DEBUG] Antes do dropna, df_window tem {len(df_window)} linhas.")
+        print("[DEBUG] Verificando valores nulos:")
+        print(df_window.isnull().sum())
+
+        df_window.dropna(subset=['Protocol', 'Info', 'Length'], inplace=True)
+
+        # --- 3. DEBUD DEPOIS DO DROPNA ---
+        print(f"[DEBUG] Depois do dropna, df_window tem {len(df_window)} linhas.")
+
+        if df_window.empty:
+            print("[DEBUG] df_window está VAZIO após o dropna. Saindo da função.")
+            self.packet_buffer.clear()
+            return
+
+        # ... (o resto do código permanece o mesmo) ...
+        def correct_protocol(row):
+            info_str = str(row['Info']).lower()
+            if 'proto=udp' in info_str or 'udp' in str(row['Protocol']).lower(): return 'UDP'
+            if 'proto=icmp' in info_str or 'icmp' in str(row['Protocol']).lower(): return 'ICMP'
+            if 'proto=tcp' in info_str or '[syn]' in info_str or 'tcp' in str(row['Protocol']).lower(): return 'TCP'
+            return 'Other'
+        df_window['Protocol'] = df_window.apply(correct_protocol, axis=1)
+
+        df_window['Is_SYN'] = df_window['Info'].str.contains('[SYN]', regex=False).astype(int)
+        df_window['Is_Fragmented'] = df_window['Info'].str.contains('Fragmented', regex=False).astype(int)
+
+        num_packets_in_window = len(df_window)
+        packet_rate = num_packets_in_window / self.window_size
+        
+        protocol_counts = df_window['Protocol'].value_counts()
         tcp_packets = int(protocol_counts.get('TCP', 0))
         udp_packets = int(protocol_counts.get('UDP', 0))
         icmp_packets = int(protocol_counts.get('ICMP', 0))
+        
+        syn_flag_count = int(df_window['Is_SYN'].sum())
+        fragmented_packet_count = int(df_window['Is_Fragmented'].sum())
+        avg_packet_length = float(df_window['Length'].mean()) if num_packets_in_window > 0 else 0.0
 
-        feature_names = ['TCP', 'UDP', 'ICMP']
-        features_values = [[tcp_packets, udp_packets, icmp_packets]]
-        features_df = pd.DataFrame(features_values, columns=feature_names)
+        NORMAL_THRESHOLD = 10
+        attack_type = "Normal" 
 
-        if self.model and self.label_encoder:
-            try:
-                print(f"[DEBUG] Features Finais: {features_values}")
-                
-                prediction_code = self.model.predict(features_df)[0]
-                attack_type = self.label_encoder.inverse_transform([prediction_code])[0]
-                
-                # --- CORREÇÃO FINAL E DEFINITIVA ---
-                with self.stats_lock:
-                    self.detection_stats["total_packets_processed"] += num_packets_in_window
-                    
-                    # Acessa o dicionário aninhado 'attacks_detected' para incrementar
-                    if attack_type in self.detection_stats["attacks_detected"]:
-                        self.detection_stats["attacks_detected"][attack_type] += 1
-                    
-                    self.detection_stats["last_detection_label"] = attack_type
-                    
-                    # (O resto do seu código de histórico pode ser adicionado aqui se você o tiver)
-                    
-                    if attack_type != "Normal":
-                        self.detection_stats["last_detection_timestamp"] = datetime.now().isoformat()
-                        print(f"!!! ALERTA DE ATAQUE DETECTADO: {attack_type} !!!")
-                # --- FIM DA CORREÇÃO ---
+        is_potentially_attack = (tcp_packets > NORMAL_THRESHOLD or 
+                                 udp_packets > NORMAL_THRESHOLD or 
+                                 icmp_packets > NORMAL_THRESHOLD)
 
-            except Exception as e:
-                print(f"Erro na predição da janela: {e}")
+        if is_potentially_attack:
+            if self.model and self.label_encoder:
+                try:
+                    feature_names = ['TCP', 'UDP', 'ICMP', 'Avg_Packet_Length', 'SYN_Flag_Count', 'Fragmented_Packet_Count', 'Packet_Rate']
+                    features_values = [[
+                        tcp_packets, udp_packets, icmp_packets, 
+                        avg_packet_length, syn_flag_count, fragmented_packet_count, packet_rate
+                    ]]
+                    
+                    features_df = pd.DataFrame(features_values, columns=feature_names)
+                    
+                    print(f"[DEBUG] Acionando modelo ML v26. Features: {features_values}")
+                    
+                    prediction_code = self.model.predict(features_df)[0]
+                    attack_type = self.label_encoder.inverse_transform([prediction_code])[0]
+
+                except Exception as e:
+                    print(f"Erro na predição do modelo ML: {e}")
+                    attack_type = "Unknown Attack"
+        
+        with self.stats_lock:
+            self.detection_stats["total_packets_processed"] += num_packets_in_window
+            
+            if attack_type in self.detection_stats["attacks_detected"]:
+                self.detection_stats["attacks_detected"][attack_type] += 1
+            
+            self.detection_stats["last_detection_label"] = attack_type
+            
+            if attack_type != "Normal":
+                print(f"!!! ALERTA DETECTADO ({'MODELO ML' if is_potentially_attack else 'REGRA'}): {attack_type} !!!")
+            else:
+                # Adicionamos um print para o tráfego normal também, para sabermos que está funcionando
+                print(f"--- Tráfego processado. Resultado: {attack_type} ---")
 
         self.packet_buffer.clear()
 
