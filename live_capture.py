@@ -2,85 +2,177 @@ import subprocess
 import requests
 import json
 import time
+import os
+import signal
+import threading
+import queue
+from typing import Optional
 
-# URL da sua API de detecção
-API_URL = "http://localhost:5002/api/ddos/detect" 
-
-# --- COMANDO TSHARK CORRIGIDO ---
-# Usando 'ip.proto' em vez de '_ws.col.Protocol' para uma identificação de protocolo mais confiável.
+API_URL = "http://localhost:5002/api/ddos/detect"
+INTERFACE = "eth0"           
+CAPTURE_DURATION = 30        # segundos antes de reiniciar a captura
 TSHARK_COMMAND = [
     'sudo',
     'tshark',
-    '-i', 'eth0',  # <-- MUDE AQUI para sua interface (ex: eth0, wlan0 )
+    '-i', INTERFACE,
     '-l',
     '-T', 'fields',
     '-e', 'frame.time_epoch',
     '-e', 'ip.src',
     '-e', 'ip.dst',
-    '-e', 'ip.proto',  # <-- MUDANÇA CRÍTICA AQUI
+    '-e', 'ip.proto',
     '-e', 'frame.len',
     '-e', '_ws.col.Info'
 ]
 
-def start_realtime_capture():
+def _reader_thread(process: subprocess.Popen, q: queue.Queue):
     """
-    Inicia a captura com tshark e envia os pacotes para a API em tempo real.
+    Lê linhas de stdout do processo e as coloca na fila.
+    Executa em thread separada para evitar bloqueio no readline.
     """
-    print(f"Iniciando captura na interface 'eth0'...")
-    print(f"Enviando dados para a API em {API_URL}")
+    try:
+        for line in iter(process.stdout.readline, ''):
+            if line == '' and process.poll() is not None:
+                break
+            q.put(line)
+    except Exception as e:
+        
+        q.put(f"__READER_ERROR__\t{e}\n")
+    finally:
+        try:
+            process.stdout.close()
+        except Exception:
+            pass
+
+def start_realtime_capture_once(duration: int) -> None:
+    """
+    Inicia o tshark, processa pacotes e encerra após 'duration' segundos.
+    """
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Iniciando captura na interface '{INTERFACE}' por {duration} segundos...")
+    q: queue.Queue = queue.Queue()
+    process: Optional[subprocess.Popen] = None
 
     try:
+        # Iniciar tshark
         process = subprocess.Popen(
-            TSHARK_COMMAND, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.PIPE, 
-            text=True
+            TSHARK_COMMAND,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+            preexec_fn=os.setsid  
         )
+    except FileNotFoundError:
+        print("Erro: 'tshark' não encontrado. Instale o tshark ou verifique o PATH.")
+        return
+    except PermissionError:
+        print("Erro de permissão. Execute este script com 'sudo' ou garanta permissões adequadas.")
+        return
+    except Exception as e:
+        print(f"Erro ao iniciar tshark: {e}")
+        return
 
-        for line in iter(process.stdout.readline, ''):
+    # Inicia a thread leitora
+    reader = threading.Thread(target=_reader_thread, args=(process, q), daemon=True)
+    reader.start()
+
+    start_time = time.time()
+
+    try:
+        while True:
+            elapsed = time.time() - start_time
+            # Se o tempo estourou, interrompe a captura
+            if elapsed >= duration:
+                print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Tempo de captura ({duration}s) atingido — reiniciando...")
+                break
+
+            try:
+                # tenta pegar uma linha da fila com timeout curto para checar elapsed periodicamente
+                line = q.get(timeout=1.0)
+            except queue.Empty:
+                # sem linha disponível, volta ao começo do loop para checar tempo/elaplsed
+                # Também checa se o processo acabou inesperadamente
+                if process.poll() is not None:
+                    stderr = process.stderr.read() if process.stderr else ""
+                    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] tshark terminou inesperadamente (returncode={process.returncode}). Stderr: {stderr.strip()}")
+                    break
+                continue
+
+            # Se reader colocou um erro especial
+            if isinstance(line, str) and line.startswith("__READER_ERROR__"):
+                print("Erro na thread leitora:", line)
+                continue
+
             if not line.strip():
                 continue
 
             parts = line.strip().split('\t')
-            
             if len(parts) < 6:
+                
                 continue
 
-            # Monta o dicionário do pacote para enviar à API
-            # O campo 'protocol' agora conterá um número (ex: '6' para TCP)
-# Em live_capture.py
-
-# ... (dentro do loop 'for line in iter(...)')
-
-            # Monta o dicionário do pacote com as chaves CORRETAS (Primeira letra maiúscula)
             packet_data = {
                 'Time': float(parts[0]) if parts[0] else 0.0,
                 'Source': parts[1] if parts[1] else 'N/A',
                 'Destination': parts[2] if parts[2] else 'N/A',
                 'Protocol': parts[3] if parts[3] else 'N/A',
-                'Length': int(parts[4]) if parts[4] else 0,   # <-- CORRIGIDO
+                'Length': int(parts[4]) if parts[4] else 0,
                 'Info': parts[5] if parts[5] else 'N/A'
             }
 
+            # Envia para a API
             try:
                 response = requests.post(API_URL, json=packet_data, timeout=2)
                 response.raise_for_status()
             except requests.exceptions.RequestException as e:
-                print(f"Erro ao enviar para a API: {e}")
+                print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Erro ao enviar para a API: {e}")
 
-# ... (resto do arquivo)
-            
-    except FileNotFoundError:
-        print("Erro: 'tshark' não encontrado.")
-    except PermissionError:
-        print("Erro de permissão. Execute este script com 'sudo'.")
     except KeyboardInterrupt:
-        print("\nCaptura interrompida pelo usuário.")
+        print("\nCaptura interrompida pelo usuário (KeyboardInterrupt).")
+        # prossegue para cleanup
     finally:
-        if 'process' in locals() and process.poll() is None:
-            process.terminate()
-            process.wait()
-        print("Captura finalizada.")
+        # Termina o processo e o grupo de processos
+        if process and process.poll() is None:
+            try:
+                # mata o grupo de processos para garantir encerramento
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            except Exception:
+                try:
+                    process.terminate()
+                except Exception:
+                    pass
+
+            # aguarda um pouco e força kill se necessário
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                except Exception:
+                    pass
+                process.wait()
+
+        # limpa filas/threads
+        try:
+            # dar tempo para a thread terminar naturalmente
+            reader.join(timeout=1)
+        except Exception:
+            pass
+
+        print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Captura finalizada.")
+
+def start_realtime_capture_loop(cycle_seconds: int):
+    """
+    Mantém um loop infinito reiniciando a captura a cada 'cycle_seconds' segundos
+    até que o usuário cancele com Ctrl+C.
+    """
+    try:
+        while True:
+            start_realtime_capture_once(cycle_seconds)
+            # Pequena pausa entre reinícios para evitar loops rápidos em caso de falha
+            time.sleep(0.1)
+    except KeyboardInterrupt:
+        print("\nLoop principal interrompido pelo usuário. Encerrando.")
 
 if __name__ == '__main__':
-    start_realtime_capture()
+    start_realtime_capture_loop(CAPTURE_DURATION)

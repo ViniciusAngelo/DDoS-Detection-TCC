@@ -51,10 +51,6 @@ def simulate_traffic_api():
     delay = request.json.get("delay", 0.001)
     
     csv_path = os.path.join(os.path.dirname(__file__), "..", "processed_network_traffic.csv")
-    
-    # Ajuste o caminho para o arquivo processed_network_traffic.csv
-    # Se o arquivo estiver em /home/ubuntu/processed_network_traffic.csv
-    # csv_path = "/home/ubuntu/processed_network_traffic.csv"
 
     if not os.path.exists(csv_path):
         return jsonify({"error": "Dados de simulação não encontrados. Verifique o caminho: " + csv_path}), 404
@@ -83,7 +79,7 @@ def simulate_traffic_api():
         "simulated_packets_sent": simulated_count
     })
 
-# Endpoint para detecção em lote (opcional, se necessário)
+# Endpoint para detecção em lote
 @ddos_bp.route("/detect/batch", methods=["POST"])
 def detect_batch():
     data = request.get_json()

@@ -7,9 +7,7 @@ import threading
 import queue
 import time
 
-# --- CAMINHOS PARA O MODELO E ENCODER ---
-# Use caminhos absolutos para garantir que o serviço encontre os arquivos.
-# ATENÇÃO: Verifique se este caminho está correto para o seu ambiente.
+# CAMINHOS PARA O MODELO E ENCODER
 BASE_DIR = "/home/kali/ddos_detection_system/src" 
 MODEL_PATH = os.path.join(BASE_DIR, "/home/kali/ddos_detection_system/src/ddos_model_v28.pkl")
 ENCODER_PATH = os.path.join(BASE_DIR, "/home/kali/ddos_detection_system/src/label_encoder_v28.pkl")
@@ -57,8 +55,6 @@ class DDoSDetector:
         """ Adiciona um pacote bruto à fila de processamento. """
         self.packet_queue.put(packet_data)
 
-# Dentro da classe DDoSDetector, em realtime_detector.py
-
     def _process_window(self):
         """
         [VERSÃO DE DEPURAÇÃO] Processa a janela de pacotes com logs detalhados.
@@ -66,21 +62,21 @@ class DDoSDetector:
         if not self.packet_buffer:
             return
 
-        # --- 1. DEBUD INICIAL ---
+        # DEBUD INICIAL
         print(f"\n[DEBUG] Iniciando _process_window com {len(self.packet_buffer)} pacotes no buffer.")
 
         df_window = pd.DataFrame(self.packet_buffer)
         
         df_window['Length'] = pd.to_numeric(df_window['Length'], errors='coerce')
         
-        # --- 2. DEBUD ANTES DO DROPNA ---
+        # DEBUD ANTES DO DROPNA
         print(f"[DEBUG] Antes do dropna, df_window tem {len(df_window)} linhas.")
         print("[DEBUG] Verificando valores nulos:")
         print(df_window.isnull().sum())
 
         df_window.dropna(subset=['Protocol', 'Info', 'Length'], inplace=True)
 
-        # --- 3. DEBUD DEPOIS DO DROPNA ---
+        # DEBUD DEPOIS DO DROPNA
         print(f"[DEBUG] Depois do dropna, df_window tem {len(df_window)} linhas.")
 
         if df_window.empty:
@@ -88,7 +84,6 @@ class DDoSDetector:
             self.packet_buffer.clear()
             return
 
-        # ... (o resto do código permanece o mesmo) ...
         def correct_protocol(row):
             info_str = str(row['Info']).lower()
             if 'proto=udp' in info_str or 'udp' in str(row['Protocol']).lower(): return 'UDP'
@@ -150,7 +145,6 @@ class DDoSDetector:
             if attack_type != "Normal":
                 print(f"!!! ALERTA DETECTADO ({'MODELO ML' if is_potentially_attack else 'REGRA'}): {attack_type} !!!")
             else:
-                # Adicionamos um print para o tráfego normal também, para sabermos que está funcionando
                 print(f"--- Tráfego processado. Resultado: {attack_type} ---")
 
         self.packet_buffer.clear()
@@ -163,7 +157,7 @@ class DDoSDetector:
         
         while self.is_monitoring:
             try:
-                # Tenta pegar um pacote da fila (sem bloquear por muito tempo)
+                # Tenta pegar um pacote da fila
                 packet_data = self.packet_queue.get(timeout=0.1)
                 self.packet_buffer.append(packet_data)
             except queue.Empty:

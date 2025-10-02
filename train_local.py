@@ -1,11 +1,3 @@
-# ==============================================================================
-# SCRIPT DE TREINAMENTO DEFINITIVO (V28)
-# Objetivo: Implementar um pré-processamento robusto que garante assinaturas
-#           distintas para cada ataque e treinar um modelo final.
-# Correções:
-#   - Lógica de `correct_protocol` aprimorada para garantir a contagem de UDP.
-#   - Validação explícita de que cada classe de ataque tem features não nulas.
-# ==============================================================================
 import pandas as pd
 import numpy as np
 import os
@@ -43,15 +35,12 @@ def preprocess_robust(file_paths, window_size=1.0):
     df_combined["Length"] = pd.to_numeric(df_combined["Length"], errors="coerce")
     df_combined.dropna(subset=["Time", "Protocol", "Info", "Length"], inplace=True)
 
-    # <<< CORREÇÃO CRÍTICA NA LÓGICA DE PROTOCOLO >>>
-    # Esta nova lógica é mais explícita e prioriza o número do protocolo.
     def correct_protocol_final(row):
         proto_num = str(row['Protocol'])
         info_str = str(row['Info']).lower()
         
         if proto_num == '6' or '[syn]' in info_str:
             return 'TCP'
-        # A condição para UDP deve ser a primeira a ser checada após TCP.
         if proto_num == '17':
             return 'UDP'
         if proto_num == '1':
@@ -94,7 +83,6 @@ def preprocess_robust(file_paths, window_size=1.0):
     
     df_agg = df_agg.fillna(0)
     
-    # <<< VALIDAÇÃO EXPLÍCITA DOS DADOS PROCESSADOS >>>
     print("\n--- Validação dos Dados de Treinamento Processados ---")
     summary = df_agg.groupby('Label')[['TCP', 'UDP', 'ICMP', 'SYN_Flag_Count', 'Fragmented_Packet_Count']].mean()
     print(summary)
@@ -148,7 +136,7 @@ def train_final_model(df_features):
     feature_importances = pd.Series(model.feature_importances_, index=features).sort_values(ascending=False)
     print(feature_importances)
     
-    # <<< VERIFICAÇÃO FINAL COM CENÁRIOS MANUAIS >>>
+    # VERIFICAÇÃO FINAL COM CENÁRIOS MANUAIS
     print("\n--- Verificação Final com Cenários Manuais ---")
     # Cenário de teste para SynFlood: Muitos pacotes TCP, pequenos, alta contagem de SYN.
     syn_test_data = pd.DataFrame([[100, 5, 5,   60,  100,  0,  110]], columns=features)
@@ -170,7 +158,7 @@ def train_final_model(df_features):
     else:
         print("\nVERIFICAÇÃO FINAL FALHOU. Revise a importância das features e a validação dos dados.")
 
-# --- EXECUÇÃO ---
+# EXECUÇÃO
 if __name__ == '__main__':
     attack_files = {
         "SynFlood_V16.csv": "SynFlood",
