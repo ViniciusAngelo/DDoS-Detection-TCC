@@ -9,184 +9,470 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg: #0e1117;        /* Streamlit-like dark */
-            --panel: #161a23;     /* Card background */
-            --panel-2: #1b2030;   /* Subtle contrast */
-            --text: #e6edf3;      /* Primary text */
-            --muted: #9da7b3;     /* Secondary text */
-            --border: #222733;    /* Borders */
-            --accent: #2b79c2;    /* Accent (minimal use) */
+            --bg: #0e1117;
+            --bg-secondary: #161a23;
+            --bg-tertiary: #1d2230;
+            --text: #ffffff;
+            --text-muted: #8b949e;
+            --text-accent: #58a6ff;
+            --border: #30363d;
+            --danger: #f85149;
+            --danger-bg: rgba(248, 81, 73, 0.1);
+            --success: #56d364;
+            --warning: #e3b341;
+            --panel: rgba(22, 26, 35, 0.6);
+            --panel-hover: rgba(22, 26, 35, 0.8);
+            --glow-danger: 0 0 30px rgba(248, 81, 73, 0.3);
+            --glow-success: 0 0 20px rgba(86, 211, 100, 0.2);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         html, body {
-            height: 100%;
+            height: 100vh;
+            overflow-x: hidden;
         }
 
         body {
-            background-color: var(--bg);
+            background: linear-gradient(135deg, var(--bg) 0%, #0a0d12 100%);
             color: var(--text);
-            font-family: 'Ubuntu', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Ubuntu', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-weight: 400;
+            line-height: 1.6;
         }
 
-        .navbar {
-            background: transparent;
+        /* Header */
+        .header {
+            background: rgba(22, 26, 35, 0.95);
+            backdrop-filter: blur(10px);
             border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        .navbar-brand {
-            color: var(--text) !important;
+        .header h1 {
+            font-size: 1.75rem;
             font-weight: 600;
-            letter-spacing: .3px;
+            letter-spacing: -0.02em;
+            background: linear-gradient(90deg, var(--text) 0%, var(--text-accent) 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
         }
 
-        .container {
-            max-width: 1080px;
-        }
-
-        .card {
-            background-color: var(--panel);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            box-shadow: 0 2px 20px rgba(0,0,0,.25);
-            margin-bottom: 22px;
-        }
-
-        .card-header {
-            background: linear-gradient(180deg, var(--panel), var(--panel-2));
-            color: var(--text);
-            border-bottom: 1px solid var(--border);
+        /* Attack Alert */
+        .attack-alert {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: linear-gradient(135deg, var(--danger) 0%, #ff4757 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: var(--glow-danger), 0 8px 32px rgba(0,0,0,0.4);
             font-weight: 600;
             font-size: 0.95rem;
-            padding: 12px 16px;
+            letter-spacing: 0.02em;
+            transform: translateX(120%);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 1px solid rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
         }
 
-        .card-body {
-            padding: 16px;
+        .attack-alert.show {
+            transform: translateX(0);
+            animation: pulse 2s infinite;
         }
 
-        .stats p {
-            margin: 0 0 6px 0;
-            color: var(--muted);
-            font-size: .925rem;
-        }
-        .stats .stat-value {
-            color: var(--text);
-            font-weight: 600;
-            font-size: 1.05rem;
+        .attack-alert .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-left: 12px;
+            opacity: 0.8;
+            transition: opacity 0.2s;
         }
 
-        /* Controls */
-        .simulation-controls .btn,
-        .simulation-controls .form-control,
-        .simulation-controls .form-select {
-            background: #111522;
-            color: var(--text);
+        .attack-alert .close-btn:hover {
+            opacity: 1;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: var(--glow-danger), 0 8px 32px rgba(0,0,0,0.4); }
+            50% { box-shadow: 0 0 40px rgba(248, 81, 73, 0.6), 0 8px 32px rgba(0,0,0,0.4); }
+        }
+
+        /* Main Content */
+        .main-content {
+            padding: 2rem 0;
+            min-height: calc(100vh - 80px);
+        }
+
+        .container-fluid {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-item {
+            background: var(--panel);
             border: 1px solid var(--border);
-        }
-        .simulation-controls .btn:hover {
-            background: #0f1420;
-        }
-        .simulation-controls .btn:disabled {
-            opacity: .6;
-        }
-        .simulation-controls .btn {
-            margin-right: 8px;
-        }
-        .form-control-sm {
-            width: 120px;
-            display: inline-block;
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
         }
 
-        /* Chart container */
+        .stat-item:hover {
+            background: var(--panel-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .stat-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--text-accent), var(--success));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .stat-item:hover::before {
+            opacity: 1;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            color: var(--text);
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value.danger {
+            color: var(--danger);
+            text-shadow: 0 0 10px rgba(248, 81, 73, 0.4);
+        }
+
+        .stat-value.success {
+            color: var(--success);
+        }
+
+        /* Chart Section */
+        .chart-section {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 3rem;
+            backdrop-filter: blur(10px);
+            position: relative;
+        }
+
+        .chart-header {
+            margin-bottom: 2rem;
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+
+        .chart-subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
         #attackTypeChart {
-            max-height: 280px;
+            max-height: 400px;
+            filter: drop-shadow(0 4px 20px rgba(0,0,0,0.3));
         }
 
-        .meta-inline {
-            color: var(--muted);
-            font-size: .9rem;
+        /* Controls Section */
+        .controls-section {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .controls-header {
+            margin-bottom: 2rem;
+        }
+
+        .controls-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+
+        .controls-subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn-modern {
+            background: linear-gradient(135deg, var(--text-accent) 0%, #4a9eff 100%);
+            border: none;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 0.02em;
+            box-shadow: 0 4px 16px rgba(88, 166, 255, 0.3);
+        }
+
+        .btn-modern:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(88, 166, 255, 0.4);
+        }
+
+        .btn-modern:disabled {
+            background: var(--text-muted);
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .input-modern {
+            background: rgba(22, 26, 35, 0.8);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            width: 120px;
+            transition: all 0.3s ease;
+        }
+
+        .input-modern:focus {
+            outline: none;
+            border-color: var(--text-accent);
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+        }
+
+        .control-info {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container-fluid {
+                padding: 0 1rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+            
+            .stat-value {
+                font-size: 2rem;
+            }
+            
+            .chart-section,
+            .controls-section {
+                padding: 1.5rem;
+            }
+            
+            .attack-alert {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                transform: translateY(-120%);
+            }
+            
+            .attack-alert.show {
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
 <body>
-
-    <nav class="navbar navbar-expand-lg">
-        <div class="container">
-            <a class="navbar-brand" href="#">DDoS Detection Dashboard</a>
-        </div>
-    </nav>
-
-    <div class="container mt-4">
-        <div class="row g-3">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">Estatísticas de detecção</div>
-                    <div class="card-body stats">
-                        <div class="row g-3 mb-2">
-                            <div class="col-6">
-                                <div>Total de pacotes</div>
-                                <div class="stat-value" id="totalPackets">0</div>
-                            </div>
-                            <div class="col-6">
-                                <div>Ataques detectados</div>
-                                <div class="stat-value" id="attacksDetected">0</div>
-                            </div>
-                            <div class="col-6">
-                                <div>Tráfego normal</div>
-                                <div class="stat-value" id="normalTraffic">0</div>
-                            </div>
-                            <div class="col-6">
-                                <div>Última detecção</div>
-                                <div class="stat-value" id="lastDetection">N/A</div>
-                            </div>
-                        </div>
-                        <canvas id="attackTypeChart"></canvas>
-                        <div class="meta-inline mt-2">Cores apenas no gráfico para foco visual.</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">Controles de simulação</div>
-                    <div class="card-body simulation-controls">
-                        <div class="d-flex align-items-center flex-wrap gap-2">
-                            <button id="startSimulationBtn" class="btn btn-sm">Iniciar</button>
-                            <input type="number" id="numPackets" class="form-control form-control-sm" value="100" min="1" placeholder="Pacotes">
-                            <input type="number" id="delay" class="form-control form-control-sm" value="0.01" step="0.001" min="0" placeholder="Delay (s)">
-                            <button id="stopSimulationBtn" class="btn btn-sm" disabled>Parar</button>
-                        </div>
-                        <div class="meta-inline mt-3">Pacotes: <span id="simPacketsCount">100</span> • Delay (s): <span id="simDelay">0.01</span></div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <!-- Attack Alert -->
+    <div id="attackAlert" class="attack-alert">
+        <span id="attackMessage">🚨 ATAQUE DDOS DETECTADO!</span>
+        <button class="close-btn" onclick="hideAttackAlert()">&times;</button>
     </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="container-fluid">
+            <h1>DDoS Detection Dashboard</h1>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container-fluid">
+            <!-- Statistics Grid -->
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-label">Total de Pacotes</div>
+                    <div class="stat-value" id="totalPackets">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Ataques Detectados</div>
+                    <div class="stat-value danger" id="attacksDetected">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Tráfego Normal</div>
+                    <div class="stat-value success" id="normalTraffic">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Última Detecção</div>
+                    <div class="stat-value" id="lastDetection">N/A</div>
+                </div>
+            </div>
+
+            <!-- Chart Section -->
+            <div class="chart-section">
+                <div class="chart-header">
+                    <div class="chart-title">Distribuição de Ataques</div>
+                    <div class="chart-subtitle">Visualização em tempo real dos tipos de tráfego detectados</div>
+                </div>
+                <canvas id="attackTypeChart"></canvas>
+            </div>
+
+            <!-- Controls Section -->
+            <div class="controls-section">
+                <div class="controls-header">
+                    <div class="controls-title">Simulação de Tráfego</div>
+                    <div class="controls-subtitle">Configure e execute simulações para testar o sistema de detecção</div>
+                </div>
+                <div class="control-group">
+                    <button id="startSimulationBtn" class="btn-modern">Iniciar Simulação</button>
+                    <input type="number" id="numPackets" class="input-modern" value="100" min="1" placeholder="Pacotes">
+                    <input type="number" id="delay" class="input-modern" value="0.01" step="0.001" min="0" placeholder="Delay (s)">
+                    <button id="stopSimulationBtn" class="btn-modern" disabled>Parar Simulação</button>
+                </div>
+                <div class="control-info">
+                    Pacotes: <span id="simPacketsCount">100</span> • Delay: <span id="simDelay">0.01</span>s • Status: <span id="simStatus">Pronto</span>
+                </div>
+            </div>
+        </div>
+    </main>
 
     <script>
         const API_BASE_URL = window.location.origin + '/api/ddos';
         let attackTypeChart;
+        let lastAttackCount = 0;
+        let alertShown = false;
 
-        // Buscar e atualizar estatísticas (mínimo de logs e cores fora do gráfico)
+        // Hide attack alert
+        function hideAttackAlert() {
+            document.getElementById('attackAlert').classList.remove('show');
+            alertShown = false;
+        }
+
+        // Show attack alert
+        function showAttackAlert(attackType) {
+            const alert = document.getElementById('attackAlert');
+            const message = document.getElementById('attackMessage');
+            
+            if (attackType) {
+                message.textContent = `🚨 ATAQUE ${attackType.toUpperCase()} DETECTADO!`;
+            } else {
+                message.textContent = '🚨 ATAQUE DDOS DETECTADO!';
+            }
+            
+            alert.classList.add('show');
+            alertShown = true;
+            
+            // Auto hide after 10 seconds
+            setTimeout(() => {
+                if (alertShown) {
+                    hideAttackAlert();
+                }
+            }, 10000);
+        }
+
+        // Fetch and update statistics
         async function fetchStats() {
             try {
                 const response = await fetch(`${API_BASE_URL}/stats`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
 
-                // Totais
-                const attacksDetected = (data.attacks_detected?.SynFlood || 0) +
-                                        (data.attacks_detected?.ICMPFlood || 0) +
-                                        (data.attacks_detected?.UDPFlood || 0);
+                // Calculate totals
+                const synFlood = data.attacks_detected?.SynFlood || 0;
+                const icmpFlood = data.attacks_detected?.ICMPFlood || 0;
+                const udpFlood = data.attacks_detected?.UDPFlood || 0;
+                const currentAttackCount = synFlood + icmpFlood + udpFlood;
 
+                // Check for new attacks
+                if (currentAttackCount > lastAttackCount && !alertShown) {
+                    // Determine which attack type was detected
+                    const attackTypes = [];
+                    if (synFlood > 0) attackTypes.push('SYN FLOOD');
+                    if (icmpFlood > 0) attackTypes.push('ICMP FLOOD');
+                    if (udpFlood > 0) attackTypes.push('UDP FLOOD');
+                    
+                    showAttackAlert(attackTypes.join(' + '));
+                }
+                lastAttackCount = currentAttackCount;
+
+                // Update UI
                 document.getElementById('totalPackets').textContent = data.total_packets ?? 0;
-                document.getElementById('attacksDetected').textContent = attacksDetected;
+                document.getElementById('attacksDetected').textContent = currentAttackCount;
                 document.getElementById('normalTraffic').textContent = data.attacks_detected?.Normal ?? 0;
                 document.getElementById('lastDetection').textContent = data.last_detection || 'N/A';
 
-                // Gráfico
-                updateChart(data.attacks_detected || { SynFlood: 0, ICPMFlood: 0, UDPFlood: 0, Normal: 0 });
+                // Update chart
+                updateChart(data.attacks_detected || { SynFlood: 0, ICMPFlood: 0, UDPFlood: 0, Normal: 0 });
             } catch (error) {
-                // Silencioso para não poluir a UI
+                console.error('Error fetching stats:', error);
             }
         }
 
@@ -203,56 +489,85 @@
 
             const ctx = document.getElementById('attackTypeChart').getContext('2d');
             attackTypeChart = new Chart(ctx, {
-                type: 'pie',
+                type: 'doughnut',
                 data: {
                     labels: labels,
                     datasets: [{
                         data: dataValues,
                         backgroundColor: [
-                            'rgba(255, 99, 132, 0.8)',  // SynFlood
-                            'rgba(54, 162, 235, 0.8)',  // ICMPFlood
-                            'rgba(255, 206, 86, 0.8)',  // UDPFlood
-                            'rgba(75, 192, 192, 0.8)'   // Normal
+                            'rgba(248, 81, 73, 0.8)',   // SynFlood - Red
+                            'rgba(255, 193, 7, 0.8)',   // ICMPFlood - Yellow
+                            'rgba(220, 53, 69, 0.8)',   // UDPFlood - Dark Red
+                            'rgba(86, 211, 100, 0.8)'   // Normal - Green
                         ],
-                        borderColor: 'rgba(0,0,0,0)',
-                        borderWidth: 0
+                        borderColor: [
+                            'rgba(248, 81, 73, 1)',
+                            'rgba(255, 193, 7, 1)',
+                            'rgba(220, 53, 69, 1)',
+                            'rgba(86, 211, 100, 1)'
+                        ],
+                        borderWidth: 2,
+                        hoverOffset: 8
                     }]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
                     plugins: {
                         legend: {
-                            position: 'top',
+                            position: 'bottom',
                             labels: {
-                                color: '#e6edf3',
-                                boxWidth: 14,
-                                boxHeight: 14,
+                                color: '#ffffff',
+                                boxWidth: 16,
+                                boxHeight: 16,
+                                padding: 20,
+                                font: {
+                                    size: 14,
+                                    weight: '500'
+                                }
                             }
                         },
-                        title: {
-                            display: true,
-                            text: 'Distribuição de ataques',
-                            color: '#e6edf3',
-                            font: { weight: 500 }
-                        },
                         tooltip: {
-                            titleColor: '#e6edf3',
-                            bodyColor: '#e6edf3',
-                            backgroundColor: 'rgba(22, 26, 35, 0.9)',
-                            borderColor: '#222733',
-                            borderWidth: 1
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            backgroundColor: 'rgba(22, 26, 35, 0.95)',
+                            borderColor: '#30363d',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            titleFont: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            bodyFont: {
+                                size: 14
+                            },
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : 0;
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
+                            }
                         }
+                    },
+                    animation: {
+                        animateRotate: true,
+                        animateScale: true,
+                        duration: 1000
                     }
                 }
             });
         }
 
-        // Controles de simulação
+        // Simulation controls
         document.getElementById('startSimulationBtn').addEventListener('click', async () => {
             const numPackets = document.getElementById('numPackets').value;
             const delay = document.getElementById('delay').value;
+            
             document.getElementById('simPacketsCount').textContent = numPackets;
             document.getElementById('simDelay').textContent = delay;
+            document.getElementById('simStatus').textContent = 'Executando...';
 
             document.getElementById('startSimulationBtn').disabled = true;
             document.getElementById('stopSimulationBtn').disabled = false;
@@ -263,20 +578,46 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ num_packets: parseInt(numPackets), delay: parseFloat(delay) })
                 });
-                await response.json();
-            } catch (_) {
+                
+                if (response.ok) {
+                    document.getElementById('simStatus').textContent = 'Concluído';
+                } else {
+                    document.getElementById('simStatus').textContent = 'Erro';
+                }
+            } catch (error) {
+                console.error('Simulation error:', error);
+                document.getElementById('simStatus').textContent = 'Erro';
+            } finally {
                 document.getElementById('startSimulationBtn').disabled = false;
                 document.getElementById('stopSimulationBtn').disabled = true;
+                
+                setTimeout(() => {
+                    document.getElementById('simStatus').textContent = 'Pronto';
+                }, 3000);
             }
         });
 
         document.getElementById('stopSimulationBtn').addEventListener('click', () => {
-            alert('A simulação é executada em lote e não pode ser parada diretamente pelo dashboard. Aguarde a conclusão.');
+            // Note: Since the API doesn't support stopping simulations, this is just for UI feedback
+            document.getElementById('simStatus').textContent = 'Interrompendo...';
             document.getElementById('startSimulationBtn').disabled = false;
             document.getElementById('stopSimulationBtn').disabled = true;
+            
+            setTimeout(() => {
+                document.getElementById('simStatus').textContent = 'Pronto';
+            }, 1000);
         });
 
-        // Atualização periódica
+        // Update input displays in real time
+        document.getElementById('numPackets').addEventListener('input', (e) => {
+            document.getElementById('simPacketsCount').textContent = e.target.value;
+        });
+
+        document.getElementById('delay').addEventListener('input', (e) => {
+            document.getElementById('simDelay').textContent = e.target.value;
+        });
+
+        // Start periodic updates
         setInterval(fetchStats, 2000);
         fetchStats();
     </script>
