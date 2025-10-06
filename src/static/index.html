@@ -67,69 +67,132 @@
             margin: 0;
         }
 
-        /* Attack Alert */
+        /* Attack Alert - Fixed Banner */
         .attack-alert {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 0;
+            left: 0;
+            right: 0;
             z-index: 1000;
-            background: linear-gradient(135deg, var(--danger) 0%, #ff4757 100%);
+            background: linear-gradient(135deg, var(--danger) 0%, #dc3545 50%, #ff1744 100%);
             color: white;
-            padding: 1rem 1.5rem;
-            border-radius: 12px;
-            box-shadow: var(--glow-danger), 0 8px 32px rgba(0,0,0,0.4);
-            font-weight: 600;
-            font-size: 0.95rem;
-            letter-spacing: 0.02em;
-            transform: translateX(120%);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 1px solid rgba(255,255,255,0.2);
-            backdrop-filter: blur(10px);
+            padding: 1.5rem 2rem;
+            font-weight: 700;
+            font-size: 1.2rem;
+            letter-spacing: 0.05em;
+            text-align: center;
+            border-bottom: 3px solid rgba(255,255,255,0.3);
+            backdrop-filter: blur(15px);
+            transform: translateY(-100%);
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 30px rgba(248, 81, 73, 0.4), 0 0 60px rgba(248, 81, 73, 0.2);
         }
 
         .attack-alert.show {
-            transform: translateX(0);
-            animation: pulse 2s infinite;
+            transform: translateY(0);
+            animation: alertPulse 2s infinite ease-in-out;
         }
 
         .attack-alert .close-btn {
-            background: none;
+            position: absolute;
+            right: 2rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
             border: none;
             color: white;
-            font-size: 1.2rem;
+            font-size: 1.5rem;
             cursor: pointer;
-            margin-left: 12px;
-            opacity: 0.8;
-            transition: opacity 0.2s;
+            padding: 0.5rem;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
         }
 
         .attack-alert .close-btn:hover {
-            opacity: 1;
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-50%) scale(1.1);
         }
 
-        @keyframes pulse {
-            0%, 100% { box-shadow: var(--glow-danger), 0 8px 32px rgba(0,0,0,0.4); }
-            50% { box-shadow: 0 0 40px rgba(248, 81, 73, 0.6), 0 8px 32px rgba(0,0,0,0.4); }
+        @keyframes alertPulse {
+            0%, 100% { 
+                box-shadow: 0 4px 30px rgba(248, 81, 73, 0.4), 0 0 60px rgba(248, 81, 73, 0.2);
+                background: linear-gradient(135deg, var(--danger) 0%, #dc3545 50%, #ff1744 100%);
+            }
+            50% { 
+                box-shadow: 0 4px 40px rgba(248, 81, 73, 0.6), 0 0 80px rgba(248, 81, 73, 0.4);
+                background: linear-gradient(135deg, #ff1744 0%, var(--danger) 50%, #dc3545 100%);
+            }
+        }
+
+        /* Adjust main content when alert is visible */
+        .main-content.alert-visible {
+            padding-top: 4rem;
         }
 
         /* Main Content */
         .main-content {
             padding: 2rem 0;
             min-height: calc(100vh - 80px);
+            display: flex;
+            align-items: center;
+        }
+
+        .main-content.alert-visible {
+            padding-top: 4rem;
+            min-height: calc(100vh - 160px);
         }
 
         .container-fluid {
             max-width: 1400px;
             margin: 0 auto;
             padding: 0 2rem;
+            width: 100%;
+        }
+
+        /* Main Layout Grid */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 3rem;
+            height: 100%;
+            align-items: center;
+        }
+
+        /* Stats Section */
+        .stats-section {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-height: 80vh;
+        }
+
+        .stats-header {
+            margin-bottom: 2rem;
+        }
+
+        .stats-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+
+        .stats-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
         }
 
         /* Stats Grid */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: 1fr;
             gap: 1.5rem;
-            margin-bottom: 3rem;
+            flex: 1;
         }
 
         .stat-item {
@@ -198,29 +261,30 @@
             border: 1px solid var(--border);
             border-radius: 20px;
             padding: 2rem;
-            margin-bottom: 3rem;
             backdrop-filter: blur(10px);
             position: relative;
+            height: 100%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .chart-header {
             margin-bottom: 2rem;
+            flex-shrink: 0;
         }
 
-        .chart-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 0.5rem;
-        }
-
-        .chart-subtitle {
-            color: var(--text-muted);
-            font-size: 0.9rem;
+        .chart-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 0;
         }
 
         #attackTypeChart {
-            max-height: 400px;
+            max-height: 100%;
+            max-width: 100%;
             filter: drop-shadow(0 4px 20px rgba(0,0,0,0.3));
         }
 
@@ -306,10 +370,49 @@
             font-weight: 500;
         }
 
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+        }
+
+        .chart-subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
         /* Responsive */
+        @media (max-width: 1024px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+            
+            .stats-section,
+            .chart-section {
+                max-height: none;
+                height: auto;
+            }
+            
+            .main-content {
+                min-height: auto;
+                padding: 2rem 0;
+            }
+            
+            .main-content.alert-visible {
+                padding-top: 4rem;
+                min-height: auto;
+            }
+        }
+
         @media (max-width: 768px) {
             .container-fluid {
                 padding: 0 1rem;
+            }
+            
+            .main-layout {
+                gap: 1.5rem;
             }
             
             .stats-grid {
@@ -321,20 +424,20 @@
                 font-size: 2rem;
             }
             
-            .chart-section,
-            .controls-section {
+            .chart-section {
                 padding: 1.5rem;
             }
             
             .attack-alert {
-                top: 10px;
-                right: 10px;
-                left: 10px;
-                transform: translateY(-120%);
+                padding: 1rem;
+                font-size: 1rem;
             }
             
-            .attack-alert.show {
-                transform: translateY(0);
+            .attack-alert .close-btn {
+                right: 1rem;
+                width: 32px;
+                height: 32px;
+                font-size: 1.2rem;
             }
         }
     </style>
@@ -356,49 +459,42 @@
     <!-- Main Content -->
     <main class="main-content">
         <div class="container-fluid">
-            <!-- Statistics Grid -->
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-label">Total de Pacotes</div>
-                    <div class="stat-value" id="totalPackets">0</div>
+            <div class="main-layout">
+                <!-- Statistics Section -->
+                <div class="stats-section">
+                    <div class="stats-header">
+                        <div class="stats-title">Estatísticas de Detecção</div>
+                        <div class="stats-subtitle">Monitoramento em tempo real</div>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-label">Total de Pacotes</div>
+                            <div class="stat-value" id="totalPackets">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Ataques Detectados</div>
+                            <div class="stat-value danger" id="attacksDetected">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Tráfego Normal</div>
+                            <div class="stat-value success" id="normalTraffic">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Última Detecção</div>
+                            <div class="stat-value" id="lastDetection">N/A</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="stat-item">
-                    <div class="stat-label">Ataques Detectados</div>
-                    <div class="stat-value danger" id="attacksDetected">0</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Tráfego Normal</div>
-                    <div class="stat-value success" id="normalTraffic">0</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Última Detecção</div>
-                    <div class="stat-value" id="lastDetection">N/A</div>
-                </div>
-            </div>
 
-            <!-- Chart Section -->
-            <div class="chart-section">
-                <div class="chart-header">
-                    <div class="chart-title">Distribuição de Ataques</div>
-                    <div class="chart-subtitle">Visualização em tempo real dos tipos de tráfego detectados</div>
-                </div>
-                <canvas id="attackTypeChart"></canvas>
-            </div>
-
-            <!-- Controls Section -->
-            <div class="controls-section">
-                <div class="controls-header">
-                    <div class="controls-title">Simulação de Tráfego</div>
-                    <div class="controls-subtitle">Configure e execute simulações para testar o sistema de detecção</div>
-                </div>
-                <div class="control-group">
-                    <button id="startSimulationBtn" class="btn-modern">Iniciar Simulação</button>
-                    <input type="number" id="numPackets" class="input-modern" value="100" min="1" placeholder="Pacotes">
-                    <input type="number" id="delay" class="input-modern" value="0.01" step="0.001" min="0" placeholder="Delay (s)">
-                    <button id="stopSimulationBtn" class="btn-modern" disabled>Parar Simulação</button>
-                </div>
-                <div class="control-info">
-                    Pacotes: <span id="simPacketsCount">100</span> • Delay: <span id="simDelay">0.01</span>s • Status: <span id="simStatus">Pronto</span>
+                <!-- Chart Section -->
+                <div class="chart-section">
+                    <div class="chart-header">
+                        <div class="chart-title">Distribuição de Ataques</div>
+                        <div class="chart-subtitle">Visualização em tempo real dos tipos de tráfego detectados</div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="attackTypeChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -410,16 +506,11 @@
         let lastAttackCount = 0;
         let alertShown = false;
 
-        // Hide attack alert
-        function hideAttackAlert() {
-            document.getElementById('attackAlert').classList.remove('show');
-            alertShown = false;
-        }
-
         // Show attack alert
         function showAttackAlert(attackType) {
             const alert = document.getElementById('attackAlert');
             const message = document.getElementById('attackMessage');
+            const mainContent = document.querySelector('.main-content');
             
             if (attackType) {
                 message.textContent = `🚨 ATAQUE ${attackType.toUpperCase()} DETECTADO!`;
@@ -428,14 +519,25 @@
             }
             
             alert.classList.add('show');
+            mainContent.classList.add('alert-visible');
             alertShown = true;
             
-            // Auto hide after 10 seconds
+            // Auto hide after 15 seconds
             setTimeout(() => {
                 if (alertShown) {
                     hideAttackAlert();
                 }
-            }, 10000);
+            }, 15000);
+        }
+
+        // Hide attack alert
+        function hideAttackAlert() {
+            const alert = document.getElementById('attackAlert');
+            const mainContent = document.querySelector('.main-content');
+            
+            alert.classList.remove('show');
+            mainContent.classList.remove('alert-visible');
+            alertShown = false;
         }
 
         // Fetch and update statistics
@@ -467,12 +569,49 @@
                 document.getElementById('totalPackets').textContent = data.total_packets ?? 0;
                 document.getElementById('attacksDetected').textContent = currentAttackCount;
                 document.getElementById('normalTraffic').textContent = data.attacks_detected?.Normal ?? 0;
-                document.getElementById('lastDetection').textContent = data.last_detection || 'N/A';
+                
+                // Handle last detection - try multiple possible fields and format properly
+                let lastDetection = 'Nenhuma';
+                if (data.last_detection) {
+                    lastDetection = data.last_detection;
+                } else if (data.detection_history && data.detection_history.length > 0) {
+                    // Get the most recent detection from history
+                    const recent = data.detection_history[data.detection_history.length - 1];
+                    if (recent && recent.timestamp) {
+                        lastDetection = recent.timestamp;
+                    }
+                } else if (currentAttackCount > 0) {
+                    // If there are attacks but no timestamp, show current time
+                    lastDetection = new Date().toLocaleTimeString('pt-BR');
+                }
+                
+                // Format timestamp if it's a valid date string
+                if (lastDetection !== 'Nenhuma' && lastDetection !== 'N/A') {
+                    try {
+                        const date = new Date(lastDetection);
+                        if (!isNaN(date.getTime())) {
+                            lastDetection = date.toLocaleString('pt-BR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                second: '2-digit'
+                            });
+                        }
+                    } catch (e) {
+                        // If parsing fails, keep the original string
+                    }
+                }
+                
+                document.getElementById('lastDetection').textContent = lastDetection;
 
                 // Update chart
                 updateChart(data.attacks_detected || { SynFlood: 0, ICMPFlood: 0, UDPFlood: 0, Normal: 0 });
             } catch (error) {
                 console.error('Error fetching stats:', error);
+                // On error, show that we're offline
+                document.getElementById('lastDetection').textContent = 'Offline';
             }
         }
 
@@ -495,16 +634,16 @@
                     datasets: [{
                         data: dataValues,
                         backgroundColor: [
-                            'rgba(248, 81, 73, 0.8)',   // SynFlood - Red
-                            'rgba(255, 193, 7, 0.8)',   // ICMPFlood - Yellow
-                            'rgba(220, 53, 69, 0.8)',   // UDPFlood - Dark Red
-                            'rgba(86, 211, 100, 0.8)'   // Normal - Green
+                            '#FFC107',                    // SynFlood - Amarelo
+                            '#F44336',                    // ICMPFlood - Vermelho  
+                            '#9C27B0',                    // UDPFlood - Roxo
+                            '#2196F3'                     // Normal - Azul claro
                         ],
                         borderColor: [
-                            'rgba(248, 81, 73, 1)',
-                            'rgba(255, 193, 7, 1)',
-                            'rgba(220, 53, 69, 1)',
-                            'rgba(86, 211, 100, 1)'
+                            '#FFA000',                    // SynFlood border
+                            '#D32F2F',                    // ICMPFlood border
+                            '#7B1FA2',                    // UDPFlood border
+                            '#1976D2'                     // Normal border
                         ],
                         borderWidth: 2,
                         hoverOffset: 8
@@ -512,7 +651,8 @@
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
+                    maintainAspectRatio: true,
+                    aspectRatio: 1,
                     cutout: '60%',
                     plugins: {
                         legend: {
@@ -560,7 +700,8 @@
             });
         }
 
-        // Simulation controls
+        // Simulation controls - COMMENTED OUT
+        /*
         document.getElementById('startSimulationBtn').addEventListener('click', async () => {
             const numPackets = document.getElementById('numPackets').value;
             const delay = document.getElementById('delay').value;
@@ -616,6 +757,7 @@
         document.getElementById('delay').addEventListener('input', (e) => {
             document.getElementById('simDelay').textContent = e.target.value;
         });
+        */
 
         // Start periodic updates
         setInterval(fetchStats, 2000);
