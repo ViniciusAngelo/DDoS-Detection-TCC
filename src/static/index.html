@@ -5,144 +5,157 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DDoS Detection Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        :root {
+            --bg: #0e1117;        /* Streamlit-like dark */
+            --panel: #161a23;     /* Card background */
+            --panel-2: #1b2030;   /* Subtle contrast */
+            --text: #e6edf3;      /* Primary text */
+            --muted: #9da7b3;     /* Secondary text */
+            --border: #222733;    /* Borders */
+            --accent: #2b79c2;    /* Accent (minimal use) */
+        }
+
+        html, body {
+            height: 100%;
+        }
+
         body {
-            background-color: #f0f2f5;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Ubuntu', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
+
         .navbar {
-            background-color: #4a004a; /* Deep Purple */
+            background: transparent;
+            border-bottom: 1px solid var(--border);
         }
+
         .navbar-brand {
-            color: #ffffff !important;
-            font-weight: bold;
+            color: var(--text) !important;
+            font-weight: 600;
+            letter-spacing: .3px;
         }
+
+        .container {
+            max-width: 1080px;
+        }
+
         .card {
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1 );
-            margin-bottom: 20px;
+            background-color: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: 0 2px 20px rgba(0,0,0,.25);
+            margin-bottom: 22px;
         }
+
         .card-header {
-            background-color: #6a006a; /* Medium Purple */
-            color: white;
-            border-top-left-radius: 15px;
-            border-top-right-radius: 15px;
-            font-weight: bold;
-            font-size: 1.1em;
+            background: linear-gradient(180deg, var(--panel), var(--panel-2));
+            color: var(--text);
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 0.95rem;
+            padding: 12px 16px;
         }
-        .log-container {
-            max-height: 400px;
-            overflow-y: auto;
-            background-color: #fdfdff;
-            border-radius: 10px;
-            padding: 10px;
+
+        .card-body {
+            padding: 16px;
         }
-        .list-group-item {
-            border: none;
-            border-bottom: 1px solid #eee;
-            padding: 8px 0;
-            font-size: 0.9em;
+
+        .stats p {
+            margin: 0 0 6px 0;
+            color: var(--muted);
+            font-size: .925rem;
         }
-        .list-group-item:last-child {
-            border-bottom: none;
+        .stats .stat-value {
+            color: var(--text);
+            font-weight: 600;
+            font-size: 1.05rem;
         }
-        .synflood, .icmpflood, .udpflood {
-            font-weight: bold;
-            color: #dc3545; /* Red for attacks */
+
+        /* Controls */
+        .simulation-controls .btn,
+        .simulation-controls .form-control,
+        .simulation-controls .form-select {
+            background: #111522;
+            color: var(--text);
+            border: 1px solid var(--border);
         }
-        .normal {
-            font-weight: bold;
-            color: #28a745; /* Green for normal traffic */
+        .simulation-controls .btn:hover {
+            background: #0f1420;
+        }
+        .simulation-controls .btn:disabled {
+            opacity: .6;
         }
         .simulation-controls .btn {
-            margin-right: 10px;
+            margin-right: 8px;
         }
         .form-control-sm {
-            width: 80px;
+            width: 120px;
             display: inline-block;
         }
-        .log-entry.attack {
-            border-left: 4px solid #e74c3c;
-            background: #fdf2f2;
-            padding: 10px;
-            margin-bottom: 5px;
-            border-radius: 5px;
+
+        /* Chart container */
+        #attackTypeChart {
+            max-height: 280px;
         }
-        .log-entry.normal {
-            border-left: 4px solid #27ae60;
-            background: #f0f9f0;
-            padding: 10px;
-            margin-bottom: 5px;
-            border-radius: 5px;
-        }
-        .log-entry .timestamp {
-            color: #7f8c8d;
-            font-weight: bold;
-            margin-right: 5px;
-        }
-        .log-entry .attack-type {
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-        .log-entry .confidence {
-            color: #f39c12;
-            font-weight: bold;
+
+        .meta-inline {
+            color: var(--muted);
+            font-size: .9rem;
         }
     </style>
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container-fluid">
+    <nav class="navbar navbar-expand-lg">
+        <div class="container">
             <a class="navbar-brand" href="#">DDoS Detection Dashboard</a>
         </div>
     </nav>
 
     <div class="container mt-4">
-        <div class="row">
+        <div class="row g-3">
             <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header">
-                        <i class="bi bi-bar-chart-fill"></i> Estatísticas de Detecção
-                    </div>
-                    <div class="card-body">
-                        <p>Total de Pacotes Processados: <span id="totalPackets">0</span></p>
-                        <p>Ataques Detectados: <span id="attacksDetected">0</span></p>
-                        <p>Tráfego Normal: <span id="normalTraffic">0</span></p>
-                        <p>Última Detecção: <span id="lastDetection">N/A</span></p>
-                        <canvas id="attackTypeChart"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="bi bi-clock-history"></i> Log de Detecções Recentes
-                    </div>
-                    <div class="card-body">
-                        <div class="log-container">
-                            <ul id="detectionLog" class="list-group list-group-flush">
-                                <!-- Logs will be appended here -->
-                            </ul>
+                    <div class="card-header">Estatísticas de detecção</div>
+                    <div class="card-body stats">
+                        <div class="row g-3 mb-2">
+                            <div class="col-6">
+                                <div>Total de pacotes</div>
+                                <div class="stat-value" id="totalPackets">0</div>
+                            </div>
+                            <div class="col-6">
+                                <div>Ataques detectados</div>
+                                <div class="stat-value" id="attacksDetected">0</div>
+                            </div>
+                            <div class="col-6">
+                                <div>Tráfego normal</div>
+                                <div class="stat-value" id="normalTraffic">0</div>
+                            </div>
+                            <div class="col-6">
+                                <div>Última detecção</div>
+                                <div class="stat-value" id="lastDetection">N/A</div>
+                            </div>
                         </div>
+                        <canvas id="attackTypeChart"></canvas>
+                        <div class="meta-inline mt-2">Cores apenas no gráfico para foco visual.</div>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="row mt-4">
-            <div class="col-12">
+            <div class="col-md-6">
                 <div class="card">
-                    <div class="card-header">
-                        <i class="bi bi-play-circle-fill"></i> Controles de Simulação
-                    </div>
+                    <div class="card-header">Controles de simulação</div>
                     <div class="card-body simulation-controls">
-                        <button id="startSimulationBtn" class="btn btn-success">Iniciar Simulação</button>
-                        <input type="number" id="numPackets" class="form-control-sm" value="100" min="1">
-                        <input type="number" id="delay" class="form-control-sm" value="0.01" step="0.001" min="0">
-                        <button id="stopSimulationBtn" class="btn btn-danger" disabled>Parar Simulação</button>
-                        <p class="mt-2">Pacotes: <span id="simPacketsCount">100</span>, Delay (s): <span id="simDelay">0.01</span></p>
+                        <div class="d-flex align-items-center flex-wrap gap-2">
+                            <button id="startSimulationBtn" class="btn btn-sm">Iniciar</button>
+                            <input type="number" id="numPackets" class="form-control form-control-sm" value="100" min="1" placeholder="Pacotes">
+                            <input type="number" id="delay" class="form-control form-control-sm" value="0.01" step="0.001" min="0" placeholder="Delay (s)">
+                            <button id="stopSimulationBtn" class="btn btn-sm" disabled>Parar</button>
+                        </div>
+                        <div class="meta-inline mt-3">Pacotes: <span id="simPacketsCount">100</span> • Delay (s): <span id="simDelay">0.01</span></div>
                     </div>
                 </div>
             </div>
@@ -153,34 +166,30 @@
         const API_BASE_URL = window.location.origin + '/api/ddos';
         let attackTypeChart;
 
-        // Função para buscar e atualizar as estatísticas
+        // Buscar e atualizar estatísticas (mínimo de logs e cores fora do gráfico)
         async function fetchStats() {
             try {
                 const response = await fetch(`${API_BASE_URL}/stats`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
-                console.log('Dados da API:', data); // Para depuração
 
-                // Atualizar estatísticas gerais
-                document.getElementById('totalPackets').textContent = data.total_packets;
-                document.getElementById('attacksDetected').textContent = data.attacks_detected.SynFlood + data.attacks_detected.ICMPFlood + data.attacks_detected.UDPFlood;
-                document.getElementById('normalTraffic').textContent = data.attacks_detected.Normal || 0;
+                // Totais
+                const attacksDetected = (data.attacks_detected?.SynFlood || 0) +
+                                        (data.attacks_detected?.ICMPFlood || 0) +
+                                        (data.attacks_detected?.UDPFlood || 0);
+
+                document.getElementById('totalPackets').textContent = data.total_packets ?? 0;
+                document.getElementById('attacksDetected').textContent = attacksDetected;
+                document.getElementById('normalTraffic').textContent = data.attacks_detected?.Normal ?? 0;
                 document.getElementById('lastDetection').textContent = data.last_detection || 'N/A';
 
-                // Atualizar gráfico de tipos de ataque
-                updateChart(data.attacks_detected);
-
-                // Atualizar log de detecções
-                updateDetectionLog(data.detection_history);
-
+                // Gráfico
+                updateChart(data.attacks_detected || { SynFlood: 0, ICPMFlood: 0, UDPFlood: 0, Normal: 0 });
             } catch (error) {
-                console.error('Erro ao atualizar estatísticas:', error);
+                // Silencioso para não poluir a UI
             }
         }
 
-        // Função para atualizar o gráfico
         function updateChart(attacksDetected) {
             const labels = Object.keys(attacksDetected);
             const dataValues = Object.values(attacksDetected);
@@ -189,72 +198,56 @@
                 attackTypeChart.data.labels = labels;
                 attackTypeChart.data.datasets[0].data = dataValues;
                 attackTypeChart.update();
-            } else {
-                const ctx = document.getElementById('attackTypeChart').getContext('2d');
-                attackTypeChart = new Chart(ctx, {
-                    type: 'pie',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            data: dataValues,
-                            backgroundColor: [
-                                'rgba(255, 99, 132, 0.7)', // SynFlood
-                                'rgba(54, 162, 235, 0.7)', // ICMPFlood
-                                'rgba(255, 206, 86, 0.7)', // UDPFlood
-                                'rgba(75, 192, 192, 0.7)'  // Normal
-                            ],
-                            borderColor: [
-                                'rgba(255, 99, 132, 1)',
-                                'rgba(54, 162, 235, 1)',
-                                'rgba(255, 206, 86, 1)',
-                                'rgba(75, 192, 192, 1)'
-                            ],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                            },
-                            title: {
-                                display: true,
-                                text: 'Distribuição de Ataques Detectados'
+                return;
+            }
+
+            const ctx = document.getElementById('attackTypeChart').getContext('2d');
+            attackTypeChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataValues,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.8)',  // SynFlood
+                            'rgba(54, 162, 235, 0.8)',  // ICMPFlood
+                            'rgba(255, 206, 86, 0.8)',  // UDPFlood
+                            'rgba(75, 192, 192, 0.8)'   // Normal
+                        ],
+                        borderColor: 'rgba(0,0,0,0)',
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                color: '#e6edf3',
+                                boxWidth: 14,
+                                boxHeight: 14,
                             }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Distribuição de ataques',
+                            color: '#e6edf3',
+                            font: { weight: 500 }
+                        },
+                        tooltip: {
+                            titleColor: '#e6edf3',
+                            bodyColor: '#e6edf3',
+                            backgroundColor: 'rgba(22, 26, 35, 0.9)',
+                            borderColor: '#222733',
+                            borderWidth: 1
                         }
                     }
-                });
-            }
-        }
-
-        // Função para atualizar o log de detecções
-        function updateDetectionLog(history) {
-            const logList = document.getElementById('detectionLog');
-            logList.innerHTML = ''; // Limpa o log para recarregar com o histórico completo
-
-            // Inverte a ordem para mostrar os mais recentes primeiro
-            history.slice().reverse().forEach(item => {
-                const listItem = document.createElement('li');
-                
-                let typeClass = item.type.toLowerCase();
-                // Garante que o confidence seja formatado corretamente
-                const confidence = item.confidence ? `(${item.confidence})` : '';
-
-                // Adiciona classes CSS para estilização baseada no tipo
-                listItem.className = `list-group-item log-entry ${typeClass}`;
-
-                listItem.innerHTML = `
-                    <span class="timestamp">[${item.timestamp}]</span> 
-                    <span class="attack-type ${typeClass}">${item.type}</span> 
-                    <span class="confidence">${confidence}</span> 
-                    ${item.source} &rarr; ${item.destination}
-                `;
-                logList.prepend(listItem); // Adiciona no início para manter a ordem cronológica inversa
+                }
             });
         }
 
-        // Controles de Simulação
+        // Controles de simulação
         document.getElementById('startSimulationBtn').addEventListener('click', async () => {
             const numPackets = document.getElementById('numPackets').value;
             const delay = document.getElementById('delay').value;
@@ -267,32 +260,24 @@
             try {
                 const response = await fetch(`${API_BASE_URL}/simulate_traffic`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ num_packets: parseInt(numPackets), delay: parseFloat(delay) })
                 });
-                const result = await response.json();
-                console.log('Simulação iniciada:', result);
-            } catch (error) {
-                console.error('Erro ao iniciar simulação:', error);
+                await response.json();
+            } catch (_) {
                 document.getElementById('startSimulationBtn').disabled = false;
                 document.getElementById('stopSimulationBtn').disabled = true;
             }
         });
 
         document.getElementById('stopSimulationBtn').addEventListener('click', () => {
-            // A API não tem um endpoint para parar a simulação, pois ela é síncrona
-            // Esta funcionalidade seria mais complexa com threads na API
-            alert('A simulação é executada em lote e não pode ser parada diretamente via dashboard após iniciada. Aguarde a conclusão.');
+            alert('A simulação é executada em lote e não pode ser parada diretamente pelo dashboard. Aguarde a conclusão.');
             document.getElementById('startSimulationBtn').disabled = false;
             document.getElementById('stopSimulationBtn').disabled = true;
         });
 
-        // Iniciar a busca de estatísticas a cada 2 segundos
+        // Atualização periódica
         setInterval(fetchStats, 2000);
-
-        // Chamar fetchStats uma vez ao carregar a página para exibir o estado inicial
         fetchStats();
     </script>
 
