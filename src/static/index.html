@@ -157,102 +157,133 @@
         /* Main Layout Grid */
         .main-layout {
             display: grid;
-            grid-template-columns: 320px 1fr;
+            grid-template-columns: 1fr 350px;
             gap: 2rem;
             height: 100%;
             align-items: stretch;
         }
 
-        /* Stats Section */
-        .stats-section {
+        /* Status Section */
+        .status-section {
             display: flex;
             flex-direction: column;
+            gap: 1.5rem;
             height: 100%;
         }
 
-        .stats-header {
-            margin-bottom: 1rem;
-            flex-shrink: 0;
-        }
-
-        .stats-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 0.25rem;
-        }
-
-        .stats-subtitle {
-            color: var(--text-muted);
-            font-size: 0.85rem;
-        }
-
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 1rem;
-            flex: 1;
-        }
-
-        .stat-item {
+        .status-card {
             background: var(--panel);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1rem;
+            border-radius: 16px;
+            padding: 2rem;
             text-align: center;
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
             position: relative;
             overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
-        .stat-item:hover {
-            background: var(--panel-hover);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        .status-card.normal {
+            border-color: var(--success);
+            background: linear-gradient(135deg, var(--panel) 0%, rgba(86, 211, 100, 0.1) 100%);
+            box-shadow: 0 0 20px rgba(86, 211, 100, 0.1);
         }
 
-        .stat-item::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, var(--text-accent), var(--success));
-            opacity: 0;
-            transition: opacity 0.3s ease;
+        .status-card.attack {
+            border-color: var(--danger);
+            background: linear-gradient(135deg, var(--panel) 0%, rgba(248, 81, 73, 0.1) 100%);
+            box-shadow: 0 0 20px rgba(248, 81, 73, 0.2);
+            animation: statusPulse 3s infinite ease-in-out;
         }
 
-        .stat-item:hover::before {
-            opacity: 1;
+        @keyframes statusPulse {
+            0%, 100% { 
+                box-shadow: 0 0 20px rgba(248, 81, 73, 0.2);
+            }
+            50% { 
+                box-shadow: 0 0 30px rgba(248, 81, 73, 0.4);
+            }
         }
 
-        .stat-label {
-            color: var(--text-muted);
-            font-size: 0.75rem;
-            font-weight: 500;
+        .status-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.02em;
+        }
+
+        .status-title.normal {
+            color: var(--success);
+        }
+
+        .status-title.attack {
+            color: var(--danger);
+        }
+
+        .status-subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        .detection-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            flex: 1;
+        }
+
+        .detection-header {
+            margin-bottom: 1rem;
+        }
+
+        .detection-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.25rem;
+        }
+
+        .detection-subtitle {
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .detection-content {
+            text-align: center;
+        }
+
+        .detection-time {
+            color: var(--text);
+            font-size: 0.9rem;
+            font-weight: 500;
             margin-bottom: 0.5rem;
         }
 
-        .stat-value {
-            color: var(--text);
-            font-size: 1.8rem;
-            font-weight: 700;
-            line-height: 1;
-            margin-bottom: 0;
+        .detection-type {
+            color: var(--text-accent);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
-        .stat-value.danger {
-            color: var(--danger);
-            text-shadow: 0 0 8px rgba(248, 81, 73, 0.3);
-        }
-
-        .stat-value.success {
-            color: var(--success);
+        .detection-none {
+            color: var(--text-muted);
+            font-size: 1rem;
+            font-style: italic;
         }
 
         /* Chart Section */
@@ -388,9 +419,13 @@
                 gap: 1.5rem;
             }
             
-            .stats-section,
-            .chart-section {
+            .status-section {
+                flex-direction: row;
                 height: auto;
+            }
+            
+            .chart-section {
+                height: 400px;
             }
             
             .main-content {
@@ -409,17 +444,26 @@
                 gap: 1rem;
             }
             
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 0.75rem;
+            .status-section {
+                flex-direction: column;
+                gap: 1rem;
             }
             
-            .stat-value {
-                font-size: 1.5rem;
+            .status-card {
+                padding: 1.5rem;
+            }
+            
+            .status-icon {
+                font-size: 3rem;
+            }
+            
+            .status-title {
+                font-size: 1.25rem;
             }
             
             .chart-section {
                 padding: 1rem;
+                height: 300px;
             }
             
             .attack-alert {
@@ -454,32 +498,6 @@
     <main class="main-content">
         <div class="container-fluid">
             <div class="main-layout">
-                <!-- Statistics Section -->
-                <div class="stats-section">
-                    <div class="stats-header">
-                        <div class="stats-title">Estatísticas de Detecção</div>
-                        <div class="stats-subtitle">Monitoramento em tempo real</div>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-label">Total de Pacotes</div>
-                            <div class="stat-value" id="totalPackets">0</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Ataques Detectados</div>
-                            <div class="stat-value danger" id="attacksDetected">0</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Tráfego Normal</div>
-                            <div class="stat-value success" id="normalTraffic">0</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-label">Última Detecção</div>
-                            <div class="stat-value" id="lastDetection">N/A</div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Chart Section -->
                 <div class="chart-section">
                     <div class="chart-header">
@@ -488,6 +506,28 @@
                     </div>
                     <div class="chart-container">
                         <canvas id="attackTypeChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Status Section -->
+                <div class="status-section">
+                    <!-- System Status Card -->
+                    <div class="status-card normal" id="systemStatus">
+                        <div class="status-icon" id="statusIcon">🛡️</div>
+                        <div class="status-title normal" id="statusTitle">Sistema Protegido</div>
+                        <div class="status-subtitle" id="statusSubtitle">Tráfego normal detectado</div>
+                    </div>
+
+                    <!-- Last Detection Card -->
+                    <div class="detection-card">
+                        <div class="detection-header">
+                            <div class="detection-title">Última Detecção</div>
+                            <div class="detection-subtitle">Mais recente atividade suspeita</div>
+                        </div>
+                        <div class="detection-content">
+                            <div class="detection-time" id="lastDetectionTime">Nenhuma detecção</div>
+                            <div class="detection-type" id="lastDetectionType"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -511,13 +551,6 @@
             message.textContent = `🚨 ATAQUE ${attackType.toUpperCase()} DETECTADO!`;
             closeBtn.style.display = 'flex';
             alertShown = true;
-            
-            // Auto hide after 15 seconds and return to normal
-            setTimeout(() => {
-                if (alertShown) {
-                    showNormalAlert();
-                }
-            }, 15000);
         }
 
         // Show normal status
@@ -553,30 +586,36 @@
                 const normalTraffic = data.attacks_detected?.Normal || 0;
                 const currentAttackCount = synFlood + icmpFlood + udpFlood;
 
-                // Determine the most recent attack type from current counts
-                let mostRecentAttack = null;
-                if (synFlood > 0) mostRecentAttack = 'SynFlood';
-                else if (icmpFlood > 0) mostRecentAttack = 'ICMPFlood';
-                else if (udpFlood > 0) mostRecentAttack = 'UDPFlood';
+                // Determine the current highest attack type from the current data
+                let currentAttackType = null;
+                let highestCount = 0;
                 
-                // If we have detection history, use the most recent from there
-                if (data.detection_history && data.detection_history.length > 0) {
-                    const recentDetection = data.detection_history[data.detection_history.length - 1];
-                    if (recentDetection && recentDetection.type && recentDetection.type !== 'Normal') {
-                        mostRecentAttack = recentDetection.type;
-                    }
+                if (synFlood > highestCount) {
+                    currentAttackType = 'SynFlood';
+                    highestCount = synFlood;
+                }
+                if (icmpFlood > highestCount) {
+                    currentAttackType = 'ICMPFlood';
+                    highestCount = icmpFlood;
+                }
+                if (udpFlood > highestCount) {
+                    currentAttackType = 'UDPFlood';
+                    highestCount = udpFlood;
                 }
 
+                // Update system status based on current attack count
+                updateSystemStatus(currentAttackCount > 0, currentAttackType);
+                
                 // Always update alert based on current attack count
-                if (currentAttackCount > 0 && mostRecentAttack) {
-                    let attackDisplayName = mostRecentAttack;
-                    if (mostRecentAttack === 'SynFlood') attackDisplayName = 'SYN FLOOD';
-                    else if (mostRecentAttack === 'ICMPFlood') attackDisplayName = 'ICMP FLOOD';
-                    else if (mostRecentAttack === 'UDPFlood') attackDisplayName = 'UDP FLOOD';
+                if (currentAttackCount > 0 && currentAttackType) {
+                    let attackDisplayName = currentAttackType;
+                    if (currentAttackType === 'SynFlood') attackDisplayName = 'SYN FLOOD';
+                    else if (currentAttackType === 'ICMPFlood') attackDisplayName = 'ICMP FLOOD';
+                    else if (currentAttackType === 'UDPFlood') attackDisplayName = 'UDP FLOOD';
                     
-                    if (!alertShown || lastAttackType !== mostRecentAttack) {
+                    if (!alertShown || lastAttackType !== currentAttackType) {
                         showAttackAlert(attackDisplayName);
-                        lastAttackType = mostRecentAttack;
+                        lastAttackType = currentAttackType;
                     }
                 } else {
                     // No attacks, show normal status
@@ -588,27 +627,85 @@
                 
                 lastAttackCount = currentAttackCount;
 
-                // Update UI - Fix total packets calculation
-                const totalPackets = (data.total_packets || 0) + currentAttackCount + normalTraffic;
-                document.getElementById('totalPackets').textContent = totalPackets;
-                document.getElementById('attacksDetected').textContent = currentAttackCount;
-                document.getElementById('normalTraffic').textContent = normalTraffic;
+                // Update last detection based on current data, not historical
+                updateLastDetection(currentAttackCount > 0 ? currentAttackType : null, data);
+
+                // Update chart
+                updateChart(data.attacks_detected || { SynFlood: 0, ICMPFlood: 0, UDPFlood: 0, Normal: 0 });
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                // On error, show that we're offline
+                document.getElementById('lastDetectionTime').textContent = 'Sistema offline';
+                document.getElementById('lastDetectionType').textContent = '';
+            }
+        }
+
+        // Update system status
+        function updateSystemStatus(isUnderAttack, attackType) {
+            const statusCard = document.getElementById('systemStatus');
+            const statusIcon = document.getElementById('statusIcon');
+            const statusTitle = document.getElementById('statusTitle');
+            const statusSubtitle = document.getElementById('statusSubtitle');
+
+            if (isUnderAttack && attackType) {
+                statusCard.className = 'status-card attack';
+                statusIcon.textContent = '🚨';
+                statusTitle.textContent = 'Ataque Detectado';
+                statusTitle.className = 'status-title attack';
                 
-                // Handle last detection with timezone correction and attack type
-                let lastDetection = 'Nenhuma';
-                let lastAttackInfo = '';
+                let attackDisplayName = attackType;
+                if (attackType === 'SynFlood') attackDisplayName = 'SYN Flood';
+                else if (attackType === 'ICMPFlood') attackDisplayName = 'ICMP Flood';
+                else if (attackType === 'UDPFlood') attackDisplayName = 'UDP Flood';
                 
-                // Try multiple data sources for last detection
+                statusSubtitle.textContent = `${attackDisplayName} em andamento`;
+            } else {
+                statusCard.className = 'status-card normal';
+                statusIcon.textContent = '🛡️';
+                statusTitle.textContent = 'Sistema Protegido';
+                statusTitle.className = 'status-title normal';
+                statusSubtitle.textContent = 'Tráfego normal detectado';
+            }
+        }
+
+        // Update last detection
+        function updateLastDetection(currentAttackType, data) {
+            const timeElement = document.getElementById('lastDetectionTime');
+            const typeElement = document.getElementById('lastDetectionType');
+
+            if (currentAttackType) {
+                // If there's a current attack, use current time
+                const now = new Date();
+                const timeString = now.toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                
+                timeElement.textContent = timeString;
+                
+                let attackDisplayName = currentAttackType;
+                if (currentAttackType === 'SynFlood') attackDisplayName = 'SYN Flood';
+                else if (currentAttackType === 'ICMPFlood') attackDisplayName = 'ICMP Flood';
+                else if (currentAttackType === 'UDPFlood') attackDisplayName = 'UDP Flood';
+                
+                typeElement.textContent = attackDisplayName;
+            } else {
+                // No current attack, check if we have historical data
+                let hasHistoricalDetection = false;
+                
                 if (data.detection_history && data.detection_history.length > 0) {
                     const recent = data.detection_history[data.detection_history.length - 1];
-                    if (recent && recent.timestamp) {
+                    if (recent && recent.timestamp && recent.type && recent.type !== 'Normal') {
                         try {
-                            // Create date and add 1 hour to correct timezone
                             const date = new Date(recent.timestamp);
                             date.setHours(date.getHours() + 1); // Add 1 hour
                             
                             if (!isNaN(date.getTime())) {
-                                lastDetection = date.toLocaleString('pt-BR', {
+                                const timeString = date.toLocaleString('pt-BR', {
                                     day: '2-digit',
                                     month: '2-digit',
                                     year: 'numeric',
@@ -617,69 +714,26 @@
                                     second: '2-digit'
                                 });
                                 
-                                // Add attack type info
-                                if (recent.type && recent.type !== 'Normal') {
-                                    let attackType = recent.type;
-                                    if (attackType === 'SynFlood') attackType = 'SYN Flood';
-                                    else if (attackType === 'ICMPFlood') attackType = 'ICMP Flood';
-                                    else if (attackType === 'UDPFlood') attackType = 'UDP Flood';
-                                    lastAttackInfo = ` (${attackType})`;
-                                }
+                                timeElement.textContent = timeString;
+                                
+                                let attackType = recent.type;
+                                if (attackType === 'SynFlood') attackType = 'SYN Flood';
+                                else if (attackType === 'ICMPFlood') attackType = 'ICMP Flood';
+                                else if (attackType === 'UDPFlood') attackType = 'UDP Flood';
+                                
+                                typeElement.textContent = `${attackType} (histórico)`;
+                                hasHistoricalDetection = true;
                             }
                         } catch (e) {
                             console.error('Date parsing error:', e);
                         }
                     }
-                } else if (data.last_detection) {
-                    try {
-                        const date = new Date(data.last_detection);
-                        date.setHours(date.getHours() + 1); // Add 1 hour
-                        
-                        if (!isNaN(date.getTime())) {
-                            lastDetection = date.toLocaleString('pt-BR', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                second: '2-digit'
-                            });
-                        } else {
-                            lastDetection = data.last_detection;
-                        }
-                    } catch (e) {
-                        lastDetection = data.last_detection;
-                    }
-                } else if (currentAttackCount > 0) {
-                    // If there are current attacks but no timestamp, use current time
-                    const now = new Date();
-                    lastDetection = now.toLocaleString('pt-BR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                    });
-                    
-                    if (mostRecentAttack) {
-                        let attackType = mostRecentAttack;
-                        if (attackType === 'SynFlood') attackType = 'SYN Flood';
-                        else if (attackType === 'ICMPFlood') attackType = 'ICMP Flood';
-                        else if (attackType === 'UDPFlood') attackType = 'UDP Flood';
-                        lastAttackInfo = ` (${attackType})`;
-                    }
                 }
                 
-                document.getElementById('lastDetection').textContent = lastDetection + lastAttackInfo;
-
-                // Update chart
-                updateChart(data.attacks_detected || { SynFlood: 0, ICMPFlood: 0, UDPFlood: 0, Normal: 0 });
-            } catch (error) {
-                console.error('Error fetching stats:', error);
-                // On error, show that we're offline
-                document.getElementById('lastDetection').textContent = 'Offline';
-                // Don't change alert status on error
+                if (!hasHistoricalDetection) {
+                    timeElement.textContent = 'Nenhuma detecção';
+                    typeElement.textContent = '';
+                }
             }
         }
 
