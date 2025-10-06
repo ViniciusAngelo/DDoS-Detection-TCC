@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify # type: ignore
 
 user_bp = Blueprint("user", __name__)
 

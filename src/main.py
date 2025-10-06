@@ -3,8 +3,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from flask import Flask, send_from_directory
-from flask_cors import CORS
+from flask import Flask, send_from_directory # type: ignore
+from flask_cors import CORS # type: ignore
 from src.models.user import db
 from src.routes.user import user_bp
 from src.routes.ddos_detection import ddos_bp

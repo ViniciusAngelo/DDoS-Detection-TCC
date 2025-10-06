@@ -1,13 +1,13 @@
-import pandas as pd
-import numpy as np
+import pandas as pd # type: ignore
+import numpy as np # type: ignore
 import os
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, confusion_matrix
-import joblib
-import seaborn as sns
-import matplotlib.pyplot as plt
+from sklearn.ensemble import RandomForestClassifier # type: ignore
+from sklearn.preprocessing import LabelEncoder # type: ignore
+from sklearn.model_selection import train_test_split # type: ignore
+from sklearn.metrics import classification_report, confusion_matrix # type: ignore
+import joblib # type: ignore
+import seaborn as sns # type: ignore
+import matplotlib.pyplot as plt # type: ignore
 import warnings
 
 warnings.simplefilter(action='ignore', category=FutureWarning)

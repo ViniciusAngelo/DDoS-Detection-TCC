@@ -1,9 +1,10 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify # type: ignore
 from datetime import datetime
 import os
 import threading
 import queue
 import time
+import pandas as pd # type: ignore
 
 # Importar a classe DDoSDetector do arquivo correto
 from src.routes.realtime_detector import DDoSDetector
@@ -55,7 +56,7 @@ def simulate_traffic_api():
     if not os.path.exists(csv_path):
         return jsonify({"error": "Dados de simulação não encontrados. Verifique o caminho: " + csv_path}), 404
         
-    df = pd.read_csv(csv_path)
+    df = pd.read_csv(csv_path) # type: ignore
     sample_data = df.sample(n=min(num_packets, len(df)))
     
     simulated_count = 0

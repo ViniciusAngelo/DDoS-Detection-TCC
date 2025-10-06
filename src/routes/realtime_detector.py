@@ -1,6 +1,6 @@
-import joblib
-import numpy as np
-import pandas as pd
+import joblib # type: ignore
+import numpy as np # type: ignore
+import pandas as pd # type: ignore
 from datetime import datetime
 import os
 import threading
