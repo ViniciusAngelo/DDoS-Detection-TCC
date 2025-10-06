@@ -590,24 +590,28 @@
                 let currentAttackType = null;
                 let highestCount = 0;
                 
-                if (synFlood > highestCount) {
+                // Only consider attack types with actual count > 0
+                if (synFlood > 0 && synFlood > highestCount) {
                     currentAttackType = 'SynFlood';
                     highestCount = synFlood;
                 }
-                if (icmpFlood > highestCount) {
+                if (icmpFlood > 0 && icmpFlood > highestCount) {
                     currentAttackType = 'ICMPFlood';
                     highestCount = icmpFlood;
                 }
-                if (udpFlood > highestCount) {
+                if (udpFlood > 0 && udpFlood > highestCount) {
                     currentAttackType = 'UDPFlood';
                     highestCount = udpFlood;
                 }
 
-                // Update system status based on current attack count
-                updateSystemStatus(currentAttackCount > 0, currentAttackType);
+                // Check if we truly have active attacks (not just historical data)
+                const hasActiveAttacks = currentAttackCount > 0 && currentAttackType !== null;
+
+                // Update system status based on current active attacks
+                updateSystemStatus(hasActiveAttacks, currentAttackType);
                 
-                // Always update alert based on current attack count
-                if (currentAttackCount > 0 && currentAttackType) {
+                // Always update alert based on current active attacks
+                if (hasActiveAttacks && currentAttackType) {
                     let attackDisplayName = currentAttackType;
                     if (currentAttackType === 'SynFlood') attackDisplayName = 'SYN FLOOD';
                     else if (currentAttackType === 'ICMPFlood') attackDisplayName = 'ICMP FLOOD';
@@ -618,7 +622,7 @@
                         lastAttackType = currentAttackType;
                     }
                 } else {
-                    // No attacks, show normal status
+                    // No active attacks, show normal status
                     if (alertShown || lastAttackCount > 0) {
                         showNormalAlert();
                         lastAttackType = null;
@@ -628,7 +632,7 @@
                 lastAttackCount = currentAttackCount;
 
                 // Update last detection based on current data, not historical
-                updateLastDetection(currentAttackCount > 0 ? currentAttackType : null, data);
+                updateLastDetection(hasActiveAttacks ? currentAttackType : null, data);
 
                 // Update chart
                 updateChart(data.attacks_detected || { SynFlood: 0, ICMPFlood: 0, UDPFlood: 0, Normal: 0 });
@@ -702,7 +706,7 @@
                     if (recent && recent.timestamp && recent.type && recent.type !== 'Normal') {
                         try {
                             const date = new Date(recent.timestamp);
-                            date.setHours(date.getHours() + 1); // Add 1 hour
+                            date.setHours(date.getHours() + 2); // Add 2 hours
                             
                             if (!isNaN(date.getTime())) {
                                 const timeString = date.toLocaleString('pt-BR', {
@@ -756,16 +760,16 @@
                     datasets: [{
                         data: dataValues,
                         backgroundColor: [
-                            '#FFC107',                    // SynFlood - Amarelo
-                            '#F44336',                    // ICMPFlood - Vermelho  
-                            '#2196F3',                    // UDPFlood - Azul claro
-                            '#9C27B0'                     // Normal - Roxo
+                            '#FFC107',
+                            '#2196F3',
+                            '#F44336', 
+                            '#9C27B0'
                         ],
                         borderColor: [
-                            '#FFA000',                    // SynFlood border
-                            '#D32F2F',                    // ICMPFlood border
-                            '#1976D2',                    // UDPFlood border
-                            '#7B1FA2'                     // Normal border
+                            '#FFA000',
+                            '#1976D2',
+                            '#D32F2F',
+                            '#7B1FA2'
                         ],
                         borderWidth: 2,
                         hoverOffset: 8
