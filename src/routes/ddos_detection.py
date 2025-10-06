@@ -6,19 +6,14 @@ import queue
 import time
 import pandas as pd # type: ignore
 
-# Importar a classe DDoSDetector do arquivo correto
 from src.routes.realtime_detector import DDoSDetector
 
-# Criar blueprint para as rotas de detecção de DDoS
 ddos_bp = Blueprint("ddos", __name__)
 
-# Inicializar o detector de DDoS globalmente
 detector = DDoSDetector()
 
-# Iniciar o monitoramento do detector em uma thread separada
 detector.start_monitoring()
 
-# Endpoint de saúde da API
 @ddos_bp.route("/health", methods=["GET"])
 def health_check():
     return jsonify({
@@ -27,25 +22,23 @@ def health_check():
         "detector_monitoring": detector.is_monitoring
     })
 
-# Endpoint para obter estatísticas em tempo real
+# Estatísticas em tempo real
 @ddos_bp.route("/stats", methods=["GET"])
 def get_stats():
     return jsonify(detector.get_stats())
 
-# Endpoint para detecção de um único pacote
+# Detecção de um único pacote
 @ddos_bp.route("/detect", methods=["POST"])
 def detect_packet():
     packet_data = request.get_json()
     if not packet_data:
         return jsonify({"error": "Dados do pacote ausentes"}), 400
 
-    # Adicionar o pacote à fila do detector para processamento assíncrono
     detector.add_packet(packet_data)
 
-    # Retornar uma resposta imediata (a detecção real acontece na thread do detector)
     return jsonify({"message": "Pacote recebido para análise", "timestamp": datetime.now().isoformat()})
 
-# Endpoint para simular tráfego (para testes)
+# Simular tráfego
 @ddos_bp.route("/simulate_traffic", methods=["POST"])
 def simulate_traffic_api():
     num_packets = request.json.get("num_packets", 100)
@@ -70,17 +63,16 @@ def simulate_traffic_api():
             "protocol": row["Protocol"],
             "info": row["Info"]
         }
-        detector.add_packet(packet_data) # Adiciona à fila do detector
+        detector.add_packet(packet_data)
         simulated_count += 1
         time.sleep(delay)
 
-    # Retornar uma resposta imediata, as detecções serão atualizadas assincronamente
     return jsonify({
         "message": "Simulação de tráfego iniciada",
         "simulated_packets_sent": simulated_count
     })
 
-# Endpoint para detecção em lote
+# Detecção em lote
 @ddos_bp.route("/detect/batch", methods=["POST"])
 def detect_batch():
     data = request.get_json()

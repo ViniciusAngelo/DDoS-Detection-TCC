@@ -9,6 +9,12 @@ try:
 except Exception:
     px = None  # Gráfico de pizza ficará indisponível se plotly não estiver instalado
 
+# Tenta usar um auto-refresh mais suave (evita blink) se disponível
+try:
+    from streamlit_extras.st_autorefresh import st_autorefresh  # type: ignore
+except Exception:
+    st_autorefresh = None  # fallback para sleep + rerun
+
 # Configurações iniciais
 st.set_page_config(page_title="DDoS Detection Dashboard", page_icon="🛡️", layout="wide")
 
@@ -28,11 +34,11 @@ if "refresh_interval" not in st.session_state:
 
 # Sidebar
 st.sidebar.header("Configurações")
-st.session_state.api_base = st.sidebar.text_input(
-    "URL da API (backend Flask)",
-    value=st.session_state.api_base,
-    help="Ex.: http://localhost:5002/api/ddos"
-)
+# st.session_state.api_base = st.sidebar.text_input(
+#     "URL da API (backend Flask)",
+#     value=st.session_state.api_base,
+#     help="Ex.: http://localhost:5002/api/ddos"
+# )
 
 st.session_state.auto_refresh = st.sidebar.checkbox(
     "Atualizar automaticamente", value=st.session_state.auto_refresh
@@ -85,20 +91,20 @@ st.title("🛡️ DDoS Detection Dashboard")
 # Ações rápidas
 with st.container():
     colA, colB, colC = st.columns([1, 1, 1])
+    # with colA:
+    #     if st.button("Atualizar agora", type="primary"):
+    #         st.rerun()
     with colA:
-        if st.button("Atualizar agora", type="primary"):
-            st.rerun()
-    with colB:
         if st.button("Resetar estatísticas", help="Chama /reset-stats"):
             reset_stats()
             st.rerun()
-    with colC:
-        if st.button("Verificar Saúde", help="Chama /health"):
-            try:
-                health = api_get("/health")
-                st.success(health)
-            except Exception as e:
-                st.error(f"Falha na verificação de saúde: {e}")
+    # with colC:
+    #     if st.button("Verificar Saúde", help="Chama /health"):
+    #         try:
+    #             health = api_get("/health")
+    #             st.success(health)
+    #         except Exception as e:
+    #             st.error(f"Falha na verificação de saúde: {e}")
 
 # Estatísticas e gráfico
 stats = fetch_stats()
@@ -147,7 +153,11 @@ with st.container():
     else:
         st.info("Sem dados suficientes para o gráfico ainda.")
 
-# Auto-refresh simples controlado por checkbox
+# Auto-refresh
 if st.session_state.auto_refresh:
-    time.sleep(float(st.session_state.refresh_interval))
-    st.rerun()
+    interval_ms = int(float(st.session_state.refresh_interval) * 1000)
+    if st_autorefresh:
+        st_autorefresh(interval=interval_ms, key="ddos_auto_refresh")
+    else:
+        time.sleep(float(st.session_state.refresh_interval))
+        st.rerun()

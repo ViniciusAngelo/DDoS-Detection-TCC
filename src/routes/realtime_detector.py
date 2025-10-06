@@ -7,23 +7,19 @@ import threading
 import queue
 import time
 
-# CAMINHOS PARA O MODELO E ENCODER
 BASE_DIR = "/home/kali/ddos_detection_system/src" 
 MODEL_PATH = os.path.join(BASE_DIR, "/home/kali/ddos_detection_system/src/ddos_model_v28.pkl")
 ENCODER_PATH = os.path.join(BASE_DIR, "/home/kali/ddos_detection_system/src/label_encoder_v28.pkl")
 
 class DDoSDetector:
     def __init__(self, window_size=1.0):
-        """
-        Inicializa o detector com uma janela de tempo para agregação de pacotes.
-        """
         self.model = None
         self.label_encoder = None
         self.load_model()
 
-        self.window_size = window_size  # Duração da janela em segundos
-        self.packet_buffer = []         # Buffer para armazenar pacotes da janela atual
-        self.packet_queue = queue.Queue() # Fila para pacotes brutos vindos do tshark
+        self.window_size = window_size
+        self.packet_buffer = []
+        self.packet_queue = queue.Queue()
         
         self.is_monitoring = False
         self.monitoring_thread = None
@@ -52,31 +48,24 @@ class DDoSDetector:
             self.label_encoder = None
 
     def add_packet(self, packet_data):
-        """ Adiciona um pacote bruto à fila de processamento. """
         self.packet_queue.put(packet_data)
 
     def _process_window(self):
-        """
-        [VERSÃO DE DEPURAÇÃO] Processa a janela de pacotes com logs detalhados.
-        """
         if not self.packet_buffer:
             return
 
-        # DEBUD INICIAL
         print(f"\n[DEBUG] Iniciando _process_window com {len(self.packet_buffer)} pacotes no buffer.")
 
         df_window = pd.DataFrame(self.packet_buffer)
         
         df_window['Length'] = pd.to_numeric(df_window['Length'], errors='coerce')
         
-        # DEBUD ANTES DO DROPNA
         print(f"[DEBUG] Antes do dropna, df_window tem {len(df_window)} linhas.")
         print("[DEBUG] Verificando valores nulos:")
         print(df_window.isnull().sum())
 
         df_window.dropna(subset=['Protocol', 'Info', 'Length'], inplace=True)
 
-        # DEBUD DEPOIS DO DROPNA
         print(f"[DEBUG] Depois do dropna, df_window tem {len(df_window)} linhas.")
 
         if df_window.empty:
@@ -150,25 +139,19 @@ class DDoSDetector:
         self.packet_buffer.clear()
 
     def _monitor_packets(self):
-        """
-        Thread principal que coleta pacotes da fila e os agrupa em janelas de tempo.
-        """
         last_window_time = time.time()
         
         while self.is_monitoring:
             try:
-                # Tenta pegar um pacote da fila
                 packet_data = self.packet_queue.get(timeout=0.1)
                 self.packet_buffer.append(packet_data)
             except queue.Empty:
-                # Se a fila estiver vazia, não faz nada e continua o loop
                 pass
 
-            # Verifica se a janela de tempo expirou
             current_time = time.time()
             if current_time - last_window_time >= self.window_size:
                 self._process_window()
-                last_window_time = current_time # Inicia a nova janela
+                last_window_time = current_time
 
     def start_monitoring(self):
         if not self.is_monitoring:
@@ -187,7 +170,6 @@ class DDoSDetector:
 
     def get_stats(self):
         with self.stats_lock:
-            # Retorna uma cópia para evitar problemas de concorrência
             return dict(self.detection_stats)
 
     def reset_stats(self):

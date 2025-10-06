@@ -10,7 +10,7 @@ from typing import Optional
 
 API_URL = "http://localhost:5002/api/ddos/detect"
 INTERFACE = "eth0"           
-CAPTURE_DURATION = 10        # segundos antes de reiniciar a captura
+CAPTURE_DURATION = 10 # segundos antes de reiniciar a captura
 TSHARK_COMMAND = [
     'sudo',
     'tshark',
@@ -26,10 +26,6 @@ TSHARK_COMMAND = [
 ]
 
 def _reader_thread(process: subprocess.Popen, q: queue.Queue):
-    """
-    Lê linhas de stdout do processo e as coloca na fila.
-    Executa em thread separada para evitar bloqueio no readline.
-    """
     try:
         for line in iter(process.stdout.readline, ''):
             if line == '' and process.poll() is not None:
@@ -45,15 +41,11 @@ def _reader_thread(process: subprocess.Popen, q: queue.Queue):
             pass
 
 def start_realtime_capture_once(duration: int) -> None:
-    """
-    Inicia o tshark, processa pacotes e encerra após 'duration' segundos.
-    """
     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Iniciando captura na interface '{INTERFACE}' por {duration} segundos...")
     q: queue.Queue = queue.Queue()
     process: Optional[subprocess.Popen] = None
 
     try:
-        # Iniciar tshark
         process = subprocess.Popen(
             TSHARK_COMMAND,
             stdout=subprocess.PIPE,
@@ -72,7 +64,6 @@ def start_realtime_capture_once(duration: int) -> None:
         print(f"Erro ao iniciar tshark: {e}")
         return
 
-    # Inicia a thread leitora
     reader = threading.Thread(target=_reader_thread, args=(process, q), daemon=True)
     reader.start()
 
@@ -81,24 +72,19 @@ def start_realtime_capture_once(duration: int) -> None:
     try:
         while True:
             elapsed = time.time() - start_time
-            # Se o tempo estourou, interrompe a captura
             if elapsed >= duration:
                 print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Tempo de captura ({duration}s) atingido — reiniciando...")
                 break
 
             try:
-                # tenta pegar uma linha da fila com timeout curto para checar elapsed periodicamente
                 line = q.get(timeout=1.0)
             except queue.Empty:
-                # sem linha disponível, volta ao começo do loop para checar tempo/elaplsed
-                # Também checa se o processo acabou inesperadamente
                 if process.poll() is not None:
                     stderr = process.stderr.read() if process.stderr else ""
                     print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] tshark terminou inesperadamente (returncode={process.returncode}). Stderr: {stderr.strip()}")
                     break
                 continue
 
-            # Se reader colocou um erro especial
             if isinstance(line, str) and line.startswith("__READER_ERROR__"):
                 print("Erro na thread leitora:", line)
                 continue
@@ -120,7 +106,6 @@ def start_realtime_capture_once(duration: int) -> None:
                 'Info': parts[5] if parts[5] else 'N/A'
             }
 
-            # Envia para a API
             try:
                 response = requests.post(API_URL, json=packet_data, timeout=2)
                 response.raise_for_status()
@@ -129,12 +114,9 @@ def start_realtime_capture_once(duration: int) -> None:
 
     except KeyboardInterrupt:
         print("\nCaptura interrompida pelo usuário (KeyboardInterrupt).")
-        # prossegue para cleanup
     finally:
-        # Termina o processo e o grupo de processos
         if process and process.poll() is None:
             try:
-                # mata o grupo de processos para garantir encerramento
                 os.killpg(os.getpgid(process.pid), signal.SIGTERM)
             except Exception:
                 try:
@@ -142,7 +124,6 @@ def start_realtime_capture_once(duration: int) -> None:
                 except Exception:
                     pass
 
-            # aguarda um pouco e força kill se necessário
             try:
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
@@ -152,9 +133,7 @@ def start_realtime_capture_once(duration: int) -> None:
                     pass
                 process.wait()
 
-        # limpa filas/threads
         try:
-            # dar tempo para a thread terminar naturalmente
             reader.join(timeout=1)
         except Exception:
             pass
@@ -162,14 +141,9 @@ def start_realtime_capture_once(duration: int) -> None:
         print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Captura finalizada.")
 
 def start_realtime_capture_loop(cycle_seconds: int):
-    """
-    Mantém um loop infinito reiniciando a captura a cada 'cycle_seconds' segundos
-    até que o usuário cancele com Ctrl+C.
-    """
     try:
         while True:
             start_realtime_capture_once(cycle_seconds)
-            # Pequena pausa entre reinícios para evitar loops rápidos em caso de falha
             time.sleep(0.1)
     except KeyboardInterrupt:
         print("\nLoop principal interrompido pelo usuário. Encerrando.")

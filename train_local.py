@@ -13,9 +13,6 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def preprocess_robust(file_paths, window_size=1.0):
-    """
-    Versão final e robusta do pré-processamento.
-    """
     print("Iniciando pré-processamento ROBUSTO (v28)...")
     column_names = ['Time', 'Source', 'Destination', 'Protocol', 'Length', 'Info']
     all_dfs = []
@@ -46,7 +43,6 @@ def preprocess_robust(file_paths, window_size=1.0):
         if proto_num == '1':
             return 'ICMP'
         
-        # Fallback para pacotes fragmentados onde o protocolo está na Info
         if 'proto=udp' in info_str: return 'UDP'
         if 'proto=icmp' in info_str: return 'ICMP'
         
@@ -87,7 +83,6 @@ def preprocess_robust(file_paths, window_size=1.0):
     summary = df_agg.groupby('Label')[['TCP', 'UDP', 'ICMP', 'SYN_Flag_Count', 'Fragmented_Packet_Count']].mean()
     print(summary)
     
-    # Verifica se a contagem de UDP para UDPFlood é maior que zero
     if summary.loc['UDPFlood']['UDP'] == 0:
         print("\nERRO CRÍTICO DE PRÉ-PROCESSAMENTO: A contagem de pacotes UDP para a classe UDPFlood é zero. Verifique a lógica `correct_protocol_final`.")
         return None
@@ -97,9 +92,6 @@ def preprocess_robust(file_paths, window_size=1.0):
     return df_agg[feature_order + ['Label']]
 
 def train_final_model(df_features):
-    """
-    Treina e avalia o modelo final (v28).
-    """
     le = LabelEncoder()
     df_features["Label_Encoded"] = le.fit_transform(df_features["Label"])
 
@@ -136,13 +128,9 @@ def train_final_model(df_features):
     feature_importances = pd.Series(model.feature_importances_, index=features).sort_values(ascending=False)
     print(feature_importances)
     
-    # VERIFICAÇÃO FINAL COM CENÁRIOS MANUAIS
     print("\n--- Verificação Final com Cenários Manuais ---")
-    # Cenário de teste para SynFlood: Muitos pacotes TCP, pequenos, alta contagem de SYN.
     syn_test_data = pd.DataFrame([[100, 5, 5,   60,  100,  0,  110]], columns=features)
-    # Cenário de teste para ICMPFlood: Muitos pacotes ICMP, grandes, muitos fragmentos.
     icmp_test_data = pd.DataFrame([[5, 5, 100, 1400,  0,  100, 110]], columns=features)
-    # Cenário de teste para UDPFlood: Muitos pacotes UDP, médios, SEM fragmentos.
     udp_test_data = pd.DataFrame([[5, 100, 5,  500,  0,  0,  110]], columns=features)
 
     syn_pred = le.inverse_transform(model.predict(syn_test_data))[0]
