@@ -540,6 +540,8 @@
         let lastAttackCount = 0;
         let alertShown = false;
         let lastAttackType = null;
+    // Contadores anteriores para calcular deltas entre leituras
+    let prevSyn = 0, prevICMP = 0, prevUDP = 0, prevNormal = 0;
 
         // Show attack alert
         function showAttackAlert(attackType) {
@@ -586,32 +588,32 @@
                 const normalTraffic = data.attacks_detected?.Normal || 0;
                 const currentAttackCount = synFlood + icmpFlood + udpFlood;
 
-                // Determine the current highest attack type from the current data
+                // Calcular deltas entre a leitura atual e a anterior (para detectar atividade em andamento)
+                let dSyn = synFlood - prevSyn;
+                let dICMP = icmpFlood - prevICMP;
+                let dUDP = udpFlood - prevUDP;
+                let dNormal = normalTraffic - prevNormal;
+                // Proteger contra reset do backend (valores negativos)
+                if (dSyn < 0) dSyn = 0;
+                if (dICMP < 0) dICMP = 0;
+                if (dUDP < 0) dUDP = 0;
+                if (dNormal < 0) dNormal = 0;
+
+                // Em ataque se houver incremento em qualquer tipo de ataque
+                const isUnderAttack = (dSyn > 0) || (dICMP > 0) || (dUDP > 0);
+
+                // Tipo de ataque atual baseado no maior delta positivo
                 let currentAttackType = null;
-                let highestCount = 0;
-                
-                // Only consider attack types with actual count > 0
-                if (synFlood > 0 && synFlood > highestCount) {
-                    currentAttackType = 'SynFlood';
-                    highestCount = synFlood;
-                }
-                if (icmpFlood > 0 && icmpFlood > highestCount) {
-                    currentAttackType = 'ICMPFlood';
-                    highestCount = icmpFlood;
-                }
-                if (udpFlood > 0 && udpFlood > highestCount) {
-                    currentAttackType = 'UDPFlood';
-                    highestCount = udpFlood;
-                }
+                let highestDelta = 0;
+                if (dSyn > highestDelta) { currentAttackType = 'SynFlood'; highestDelta = dSyn; }
+                if (dICMP > highestDelta) { currentAttackType = 'ICMPFlood'; highestDelta = dICMP; }
+                if (dUDP > highestDelta) { currentAttackType = 'UDPFlood'; highestDelta = dUDP; }
 
-                // Check if we truly have active attacks (not just historical data)
-                const hasActiveAttacks = currentAttackCount > 0 && currentAttackType !== null;
+                // Atualizar status do sistema com base nos deltas
+                updateSystemStatus(isUnderAttack, currentAttackType);
 
-                // Update system status based on current active attacks
-                updateSystemStatus(hasActiveAttacks, currentAttackType);
-                
-                // Always update alert based on current active attacks
-                if (hasActiveAttacks && currentAttackType) {
+                // Atualizar alerta fixo
+                if (isUnderAttack && currentAttackType) {
                     let attackDisplayName = currentAttackType;
                     if (currentAttackType === 'SynFlood') attackDisplayName = 'SYN FLOOD';
                     else if (currentAttackType === 'ICMPFlood') attackDisplayName = 'ICMP FLOOD';
@@ -622,7 +624,7 @@
                         lastAttackType = currentAttackType;
                     }
                 } else {
-                    // No active attacks, show normal status
+                    // No attacks, show normal status
                     if (alertShown || lastAttackCount > 0) {
                         showNormalAlert();
                         lastAttackType = null;
@@ -631,11 +633,17 @@
                 
                 lastAttackCount = currentAttackCount;
 
-                // Update last detection based on current data, not historical
-                updateLastDetection(hasActiveAttacks ? currentAttackType : null, data);
+                // Atualizar última detecção com base na atividade atual (deltas)
+                updateLastDetection(isUnderAttack ? currentAttackType : null, data);
 
                 // Update chart
                 updateChart(data.attacks_detected || { SynFlood: 0, ICMPFlood: 0, UDPFlood: 0, Normal: 0 });
+
+                // Atualizar contadores anteriores para o próximo ciclo
+                prevSyn = synFlood;
+                prevICMP = icmpFlood;
+                prevUDP = udpFlood;
+                prevNormal = normalTraffic;
             } catch (error) {
                 console.error('Error fetching stats:', error);
                 // On error, show that we're offline
@@ -706,7 +714,6 @@
                     if (recent && recent.timestamp && recent.type && recent.type !== 'Normal') {
                         try {
                             const date = new Date(recent.timestamp);
-                            date.setHours(date.getHours() + 2); // Add 2 hours
                             
                             if (!isNaN(date.getTime())) {
                                 const timeString = date.toLocaleString('pt-BR', {
@@ -742,11 +749,12 @@
         }
 
         function updateChart(attacksDetected) {
-            const labels = Object.keys(attacksDetected);
-            const dataValues = Object.values(attacksDetected);
+            // Ordem e mapeamento fixos para manter cores consistentes
+            const orderedLabels = ['SynFlood', 'ICMPFlood', 'UDPFlood', 'Normal'];
+            const dataValues = orderedLabels.map(k => attacksDetected[k] || 0);
 
             if (attackTypeChart) {
-                attackTypeChart.data.labels = labels;
+                attackTypeChart.data.labels = orderedLabels;
                 attackTypeChart.data.datasets[0].data = dataValues;
                 attackTypeChart.update();
                 return;
@@ -756,20 +764,20 @@
             attackTypeChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: labels,
+                    labels: orderedLabels,
                     datasets: [{
                         data: dataValues,
                         backgroundColor: [
-                            '#FFC107',
-                            '#2196F3',
-                            '#F44336', 
-                            '#9C27B0'
+                            '#FFC107',   // SynFlood - Amarelo
+                            '#F44336',   // ICMPFlood - Vermelho
+                            '#2196F3',   // UDPFlood - Azul claro
+                            '#9C27B0'    // Normal - Roxo
                         ],
                         borderColor: [
-                            '#FFA000',
-                            '#1976D2',
-                            '#D32F2F',
-                            '#7B1FA2'
+                            '#FFA000',   // SynFlood border
+                            '#D32F2F',   // ICMPFlood border
+                            '#1976D2',   // UDPFlood border
+                            '#7B1FA2'    // Normal border
                         ],
                         borderWidth: 2,
                         hoverOffset: 8
