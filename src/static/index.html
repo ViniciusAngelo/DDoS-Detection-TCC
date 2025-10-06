@@ -439,7 +439,7 @@
 <body>
     <!-- Attack Alert -->
     <div id="attackAlert" class="attack-alert normal">
-        <span id="attackMessage">✅ SISTEMA PROTEGIDO - TRÁFEGO NORMAL</span>
+        <span id="attackMessage">SISTEMA PROTEGIDO - TRÁFEGO NORMAL</span>
         <button class="close-btn" onclick="hideAttackAlert()" style="display: none;">&times;</button>
     </div>
 
@@ -553,8 +553,13 @@
                 const normalTraffic = data.attacks_detected?.Normal || 0;
                 const currentAttackCount = synFlood + icmpFlood + udpFlood;
 
-                // Determine the most recent attack type
+                // Determine the most recent attack type from current counts
                 let mostRecentAttack = null;
+                if (synFlood > 0) mostRecentAttack = 'SynFlood';
+                else if (icmpFlood > 0) mostRecentAttack = 'ICMPFlood';
+                else if (udpFlood > 0) mostRecentAttack = 'UDPFlood';
+                
+                // If we have detection history, use the most recent from there
                 if (data.detection_history && data.detection_history.length > 0) {
                     const recentDetection = data.detection_history[data.detection_history.length - 1];
                     if (recentDetection && recentDetection.type && recentDetection.type !== 'Normal') {
@@ -562,18 +567,23 @@
                     }
                 }
 
-                // Check for new attacks - show only the most recent attack type
-                if (currentAttackCount > lastAttackCount && mostRecentAttack && mostRecentAttack !== lastAttackType) {
+                // Always update alert based on current attack count
+                if (currentAttackCount > 0 && mostRecentAttack) {
                     let attackDisplayName = mostRecentAttack;
                     if (mostRecentAttack === 'SynFlood') attackDisplayName = 'SYN FLOOD';
                     else if (mostRecentAttack === 'ICMPFlood') attackDisplayName = 'ICMP FLOOD';
                     else if (mostRecentAttack === 'UDPFlood') attackDisplayName = 'UDP FLOOD';
                     
-                    showAttackAlert(attackDisplayName);
-                    lastAttackType = mostRecentAttack;
-                } else if (currentAttackCount === 0 && alertShown) {
+                    if (!alertShown || lastAttackType !== mostRecentAttack) {
+                        showAttackAlert(attackDisplayName);
+                        lastAttackType = mostRecentAttack;
+                    }
+                } else {
                     // No attacks, show normal status
-                    showNormalAlert();
+                    if (alertShown || lastAttackCount > 0) {
+                        showNormalAlert();
+                        lastAttackType = null;
+                    }
                 }
                 
                 lastAttackCount = currentAttackCount;
@@ -588,6 +598,7 @@
                 let lastDetection = 'Nenhuma';
                 let lastAttackInfo = '';
                 
+                // Try multiple data sources for last detection
                 if (data.detection_history && data.detection_history.length > 0) {
                     const recent = data.detection_history[data.detection_history.length - 1];
                     if (recent && recent.timestamp) {
@@ -633,9 +644,30 @@
                                 minute: '2-digit',
                                 second: '2-digit'
                             });
+                        } else {
+                            lastDetection = data.last_detection;
                         }
                     } catch (e) {
                         lastDetection = data.last_detection;
+                    }
+                } else if (currentAttackCount > 0) {
+                    // If there are current attacks but no timestamp, use current time
+                    const now = new Date();
+                    lastDetection = now.toLocaleString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    });
+                    
+                    if (mostRecentAttack) {
+                        let attackType = mostRecentAttack;
+                        if (attackType === 'SynFlood') attackType = 'SYN Flood';
+                        else if (attackType === 'ICMPFlood') attackType = 'ICMP Flood';
+                        else if (attackType === 'UDPFlood') attackType = 'UDP Flood';
+                        lastAttackInfo = ` (${attackType})`;
                     }
                 }
                 
@@ -647,6 +679,7 @@
                 console.error('Error fetching stats:', error);
                 // On error, show that we're offline
                 document.getElementById('lastDetection').textContent = 'Offline';
+                // Don't change alert status on error
             }
         }
 
