@@ -81,7 +81,6 @@ def reset_stats():
 
 # Cabeçalho
 st.title("🛡️ DDoS Detection Dashboard")
-st.caption("Visual em Streamlit mantendo as funcionalidades do frontend original.")
 
 # Ações rápidas
 with st.container():
@@ -147,45 +146,6 @@ with st.container():
             st.bar_chart(df_chart)
     else:
         st.info("Sem dados suficientes para o gráfico ainda.")
-
-# Log de detecções
-st.subheader("Log de Detecções Recentes")
-if not history:
-    st.write("Nenhuma detecção registrada ainda.")
-else:
-    for item in reversed(history):  # mais recentes primeiro
-        tipo = item.get("type") or item.get("label") or "?"
-        timestamp = item.get("timestamp") or ""
-        src = item.get("source") or item.get("src") or "?"
-        dst = item.get("destination") or item.get("dst") or "?"
-        conf = item.get("confidence")
-        badge_color = "red" if (tipo and tipo != "Normal") else "green"
-        st.markdown(
-            f"<div style='border:1px solid #e5e7eb;border-radius:8px;padding:8px;margin-bottom:8px;display:flex;gap:8px;align-items:center'>"
-            f"<span style='color:#7f8c8d;font-weight:600'>[{timestamp}]</span>"
-            f"<span style='background:{badge_color};color:white;padding:2px 8px;border-radius:8px;font-weight:700'>{tipo}</span>"
-            f"<span style='color:#f39c12;font-weight:700'>{'(' + str(conf) + ')' if conf else ''}</span>"
-            f"<span>{src} → {dst}</span>"
-            f"</div>",
-            unsafe_allow_html=True
-        )
-
-
-# Controles de Simulação
-st.subheader("Controles de Simulação")
-colS1, colS2, colS3 = st.columns([1, 1, 2])
-with colS1:
-    num_packets = st.number_input("Pacotes", min_value=1, value=100, step=10)
-with colS2:
-    delay = st.number_input("Delay (s)", min_value=0.0, value=0.01, step=0.001, format="%.3f")
-with colS3:
-    start_sim = st.button("Iniciar Simulação", type="primary")
-
-if start_sim:
-    simulate_traffic(int(num_packets), float(delay))
-
-st.caption("A simulação é executada em lote e não pode ser interrompida após iniciada.")
-
 
 # Auto-refresh simples controlado por checkbox
 if st.session_state.auto_refresh:

@@ -10,7 +10,7 @@ from typing import Optional
 
 API_URL = "http://localhost:5002/api/ddos/detect"
 INTERFACE = "eth0"           
-CAPTURE_DURATION = 30        # segundos antes de reiniciar a captura
+CAPTURE_DURATION = 10        # segundos antes de reiniciar a captura
 TSHARK_COMMAND = [
     'sudo',
     'tshark',
