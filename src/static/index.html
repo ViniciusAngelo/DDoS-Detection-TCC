@@ -45,7 +45,6 @@
             line-height: 1.6;
         }
 
-        /* Header */
         .header {
             background: rgba(22, 26, 35, 0.95);
             backdrop-filter: blur(10px);
@@ -67,7 +66,6 @@
             margin: 0;
         }
 
-        /* Attack Alert - Fixed Banner */
         .attack-alert {
             position: fixed;
             top: 0;
@@ -133,12 +131,10 @@
             }
         }
 
-        /* Adjust main content when alert is visible */
         .main-content {
             padding-top: 3.5rem;
         }
 
-        /* Main Content */
         .main-content {
             padding: 1rem 0;
             height: calc(100vh - 120px);
@@ -154,7 +150,6 @@
             height: 100%;
         }
 
-        /* Main Layout Grid */
         .main-layout {
             display: grid;
             grid-template-columns: 1fr 350px;
@@ -163,7 +158,6 @@
             align-items: stretch;
         }
 
-        /* Status Section */
         .status-section {
             display: flex;
             flex-direction: column;
@@ -286,7 +280,6 @@
             font-style: italic;
         }
 
-        /* Chart Section */
         .chart-section {
             background: var(--panel);
             border: 1px solid var(--border);
@@ -318,7 +311,6 @@
             filter: drop-shadow(0 2px 10px rgba(0,0,0,0.2));
         }
 
-        /* Controls Section */
         .controls-section {
             background: var(--panel);
             border: 1px solid var(--border);
@@ -412,7 +404,6 @@
             font-size: 0.8rem;
         }
 
-        /* Responsive */
         @media (max-width: 1024px) {
             .main-layout {
                 grid-template-columns: 1fr;
@@ -540,10 +531,10 @@
         let lastAttackCount = 0;
         let alertShown = false;
         let lastAttackType = null;
-    // Contadores anteriores para calcular deltas entre leituras
     let prevSyn = 0, prevICMP = 0, prevUDP = 0, prevNormal = 0;
+    let lastAttackRecord = null;
+    let normalDelayTimer = null;
 
-        // Show attack alert
         function showAttackAlert(attackType) {
             const alert = document.getElementById('attackAlert');
             const message = document.getElementById('attackMessage');
@@ -555,7 +546,6 @@
             alertShown = true;
         }
 
-        // Show normal status
         function showNormalAlert() {
             const alert = document.getElementById('attackAlert');
             const message = document.getElementById('attackMessage');
@@ -567,52 +557,59 @@
             alertShown = false;
         }
 
-        // Hide attack alert (not used anymore since it's always visible)
         function hideAttackAlert() {
             showNormalAlert();
         }
 
-        // Fetch and update statistics
         async function fetchStats() {
             try {
                 const response = await fetch(`${API_BASE_URL}/stats`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
 
-                console.log('API Response:', data); // Debug log
+                console.log('API Response:', data);
 
-                // Calculate totals
                 const synFlood = data.attacks_detected?.SynFlood || 0;
                 const icmpFlood = data.attacks_detected?.ICMPFlood || 0;
                 const udpFlood = data.attacks_detected?.UDPFlood || 0;
                 const normalTraffic = data.attacks_detected?.Normal || 0;
                 const currentAttackCount = synFlood + icmpFlood + udpFlood;
 
-                // Calcular deltas entre a leitura atual e a anterior (para detectar atividade em andamento)
                 let dSyn = synFlood - prevSyn;
                 let dICMP = icmpFlood - prevICMP;
                 let dUDP = udpFlood - prevUDP;
                 let dNormal = normalTraffic - prevNormal;
-                // Proteger contra reset do backend (valores negativos)
                 if (dSyn < 0) dSyn = 0;
                 if (dICMP < 0) dICMP = 0;
                 if (dUDP < 0) dUDP = 0;
                 if (dNormal < 0) dNormal = 0;
 
-                // Em ataque se houver incremento em qualquer tipo de ataque
                 const isUnderAttack = (dSyn > 0) || (dICMP > 0) || (dUDP > 0);
 
-                // Tipo de ataque atual baseado no maior delta positivo
                 let currentAttackType = null;
                 let highestDelta = 0;
                 if (dSyn > highestDelta) { currentAttackType = 'SynFlood'; highestDelta = dSyn; }
                 if (dICMP > highestDelta) { currentAttackType = 'ICMPFlood'; highestDelta = dICMP; }
                 if (dUDP > highestDelta) { currentAttackType = 'UDPFlood'; highestDelta = dUDP; }
 
-                // Atualizar status do sistema com base nos deltas
-                updateSystemStatus(isUnderAttack, currentAttackType);
+                if (isUnderAttack && currentAttackType) {
+                    lastAttackRecord = { timestamp: new Date(), type: currentAttackType };
+                }
 
-                // Atualizar alerta fixo
+                if (isUnderAttack) {
+                    if (normalDelayTimer) { clearTimeout(normalDelayTimer); normalDelayTimer = null; }
+                    updateSystemStatus(true, currentAttackType);
+                } else {
+                    if (!normalDelayTimer) {
+                        normalDelayTimer = setTimeout(() => {
+                            updateSystemStatus(false, null);
+                            showNormalAlert();
+                            normalDelayTimer = null;
+                            lastAttackType = null;
+                        }, 3000);
+                    }
+                }
+
                 if (isUnderAttack && currentAttackType) {
                     let attackDisplayName = currentAttackType;
                     if (currentAttackType === 'SynFlood') attackDisplayName = 'SYN FLOOD';
@@ -624,35 +621,30 @@
                         lastAttackType = currentAttackType;
                     }
                 } else {
-                    // No attacks, show normal status
-                    if (alertShown || lastAttackCount > 0) {
-                        showNormalAlert();
-                        lastAttackType = null;
-                    }
+                    // Não mudar imediatamente o alerta para normal; será feito pelo timer após 3s
                 }
                 
                 lastAttackCount = currentAttackCount;
 
-                // Atualizar última detecção com base na atividade atual (deltas)
-                updateLastDetection(isUnderAttack ? currentAttackType : null, data);
+                if (isUnderAttack) {
+                    updateLastDetection(currentAttackType, data);
+                } else {
+                    updateLastDetection(null, data);
+                }
 
-                // Update chart
                 updateChart(data.attacks_detected || { SynFlood: 0, ICMPFlood: 0, UDPFlood: 0, Normal: 0 });
 
-                // Atualizar contadores anteriores para o próximo ciclo
                 prevSyn = synFlood;
                 prevICMP = icmpFlood;
                 prevUDP = udpFlood;
                 prevNormal = normalTraffic;
             } catch (error) {
                 console.error('Error fetching stats:', error);
-                // On error, show that we're offline
                 document.getElementById('lastDetectionTime').textContent = 'Sistema offline';
                 document.getElementById('lastDetectionType').textContent = '';
             }
         }
 
-        // Update system status
         function updateSystemStatus(isUnderAttack, attackType) {
             const statusCard = document.getElementById('systemStatus');
             const statusIcon = document.getElementById('statusIcon');
@@ -680,22 +672,25 @@
             }
         }
 
-        // Update last detection
+        function formatBRTime(date) {
+            return date.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                timeZone: 'America/Sao_Paulo'
+            });
+        }
+
         function updateLastDetection(currentAttackType, data) {
             const timeElement = document.getElementById('lastDetectionTime');
             const typeElement = document.getElementById('lastDetectionType');
 
             if (currentAttackType) {
-                // If there's a current attack, use current time
                 const now = new Date();
-                const timeString = now.toLocaleString('pt-BR', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                });
+                const timeString = formatBRTime(now);
                 
                 timeElement.textContent = timeString;
                 
@@ -706,24 +701,24 @@
                 
                 typeElement.textContent = attackDisplayName;
             } else {
-                // No current attack, check if we have historical data
                 let hasHistoricalDetection = false;
-                
-                if (data.detection_history && data.detection_history.length > 0) {
+                if (lastAttackRecord) {
+                    const timeString = formatBRTime(lastAttackRecord.timestamp);
+                    timeElement.textContent = timeString;
+                    let attackType = lastAttackRecord.type;
+                    if (attackType === 'SynFlood') attackType = 'SYN Flood';
+                    else if (attackType === 'ICMPFlood') attackType = 'ICMP Flood';
+                    else if (attackType === 'UDPFlood') attackType = 'UDP Flood';
+                    typeElement.textContent = `${attackType} (histórico)`;
+                    hasHistoricalDetection = true;
+                } else if (data.detection_history && data.detection_history.length > 0) {
                     const recent = data.detection_history[data.detection_history.length - 1];
                     if (recent && recent.timestamp && recent.type && recent.type !== 'Normal') {
                         try {
                             const date = new Date(recent.timestamp);
                             
                             if (!isNaN(date.getTime())) {
-                                const timeString = date.toLocaleString('pt-BR', {
-                                    day: '2-digit',
-                                    month: '2-digit',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    second: '2-digit'
-                                });
+                                const timeString = formatBRTime(date);
                                 
                                 timeElement.textContent = timeString;
                                 
@@ -734,6 +729,7 @@
                                 
                                 typeElement.textContent = `${attackType} (histórico)`;
                                 hasHistoricalDetection = true;
+                                lastAttackRecord = { timestamp: date, type: recent.type };
                             }
                         } catch (e) {
                             console.error('Date parsing error:', e);
@@ -749,7 +745,6 @@
         }
 
         function updateChart(attacksDetected) {
-            // Ordem e mapeamento fixos para manter cores consistentes
             const orderedLabels = ['SynFlood', 'ICMPFlood', 'UDPFlood', 'Normal'];
             const dataValues = orderedLabels.map(k => attacksDetected[k] || 0);
 
@@ -770,14 +765,14 @@
                         backgroundColor: [
                             '#FFC107',   // SynFlood - Amarelo
                             '#F44336',   // ICMPFlood - Vermelho
-                            '#9C27B0',    // Normal - Roxo
-                            '#2196F3'   // UDPFlood - Azul claro
+                            '#2196F3',   // Normal - Azul claro
+                            '#9C27B0'    // UDPFlood - Roxo
                         ],
                         borderColor: [
                             '#FFA000',   // SynFlood border
                             '#D32F2F',   // ICMPFlood border
-                            '#7B1FA2',    // Normal border
-                            '#1976D2'   // UDPFlood border
+                            '#1976D2',   // Normal border
+                            '#7B1FA2'    // UDPFlood border
                         ],
                         borderWidth: 2,
                         hoverOffset: 8
@@ -834,7 +829,7 @@
             });
         }
 
-        // Simulation controls - COMMENTED OUT
+        // Simulation controls
         /*
         document.getElementById('startSimulationBtn').addEventListener('click', async () => {
             const numPackets = document.getElementById('numPackets').value;
@@ -893,7 +888,6 @@
         });
         */
 
-        // Start periodic updates
         setInterval(fetchStats, 2000);
         fetchStats();
     </script>
