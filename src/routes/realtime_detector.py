@@ -7,9 +7,10 @@ import threading
 import queue
 import time
 
-BASE_DIR = "/home/kali/ddos_detection_system/src" 
-MODEL_PATH = os.path.join(BASE_DIR, "/home/kali/ddos_detection_system/src/ddos_model_v28.pkl")
-ENCODER_PATH = os.path.join(BASE_DIR, "/home/kali/ddos_detection_system/src/label_encoder_v28.pkl")
+
+BASE_DIR = "src" 
+MODEL_PATH = os.path.join(BASE_DIR, "ddos_model_v28.pkl")
+ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder_v28.pkl")
 
 class DDoSDetector:
     def __init__(self, window_size=1.0):

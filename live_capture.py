@@ -9,6 +9,8 @@ import queue
 from typing import Optional
 
 API_URL = "http://localhost:5002/api/ddos/detect"
+#API_URL = "https://ddos-detection-tcc-93m5.onrender.com//api/ddos/detect"
+#API_URL = "https://ddos-detection-tcc-93m5.onrender.com//api/ddos/detect"
 INTERFACE = "eth0"           
 CAPTURE_DURATION = 10 # segundos antes de reiniciar a captura
 TSHARK_COMMAND = [
