@@ -7,9 +7,9 @@ import threading
 import queue
 import time
 
-BASE_DIR = "/home/kali/ddos_detection_system/src" 
-MODEL_PATH = os.path.join(BASE_DIR, "/home/kali/ddos_detection_system/src/ddos_model_v28.pkl")
-ENCODER_PATH = os.path.join(BASE_DIR, "/home/kali/ddos_detection_system/src/label_encoder_v28.pkl")
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+MODEL_PATH = os.path.join(BASE_DIR, "ddos_model_v28.pkl")
+ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder_v28.pkl")
 
 class DDoSDetector:
     def __init__(self, window_size=1.0):
@@ -39,7 +39,10 @@ class DDoSDetector:
             self.label_encoder = joblib.load(ENCODER_PATH)
             print(f"DDoSDetector: Modelo '{MODEL_PATH}' e encoder '{ENCODER_PATH}' carregados com sucesso!")
         except FileNotFoundError as e:
-            print(f"DDoSDetector: ERRO CRÍTICO - Arquivo de modelo ou encoder não encontrado: {e}")
+            print(
+                "DDoSDetector: ERRO CRÍTICO - Arquivo de modelo ou encoder não encontrado:\n"
+                f"  MODEL_PATH: {MODEL_PATH}\n  ENCODER_PATH: {ENCODER_PATH}\n  Detalhe: {e}"
+            )
             self.model = None
             self.label_encoder = None
         except Exception as e:
