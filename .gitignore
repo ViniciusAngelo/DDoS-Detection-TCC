@@ -3,7 +3,6 @@ __pycache__/
 *.pyc
 *.sqlite
 *.db
-*.pkl
 *.csv
 *.png
 .vscode/
