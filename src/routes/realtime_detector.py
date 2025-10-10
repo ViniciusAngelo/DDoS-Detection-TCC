@@ -21,9 +21,8 @@ class DDoSDetector:
     def __init__(self, window_size=1.0):
         self.model = None
         self.label_encoder = None
-        self.load_model()
-
         self.window_size = window_size
+
         self.packet_buffer = []
         self.packet_queue = queue.Queue()
         
@@ -39,14 +38,21 @@ class DDoSDetector:
         }
         self.stats_lock = threading.Lock()
 
-    def _find_file_upwards(filename, max_up=4):
+        # carregar modelo somente após inicializar atributos
+        self.load_model()
+
+    def _find_file_upwards(self, filename, max_up=6):
+        """
+        Procura filename subindo diretórios a partir deste arquivo.
+        Retorna Path() ou None.
+        """
         p = Path(__file__).resolve()
-        for _ in range(max_up):
+        for _ in range(int(max_up)):
             candidate = p.parent / filename
             if candidate.exists():
                 return candidate
             p = p.parent
-        # fallback: try cwd
+        # fallback: tentar cwd
         candidate = Path.cwd() / filename
         if candidate.exists():
             return candidate
@@ -60,8 +66,9 @@ class DDoSDetector:
             if not found_model or not found_encoder:
                 raise FileNotFoundError(f"Model or encoder not found. Tried: model={found_model}, encoder={found_encoder}")
 
-            self.model = joblib.load(found_model)
-            self.label_encoder = joblib.load(found_encoder)
+            # joblib aceita Path, mas converter para str evita problemas em algumas versões
+            self.model = joblib.load(str(found_model))
+            self.label_encoder = joblib.load(str(found_encoder))
             print(f"DDoSDetector: Modelo '{found_model}' e encoder '{found_encoder}' carregados com sucesso!")
         except Exception as e:
             print(f"DDoSDetector: ERRO ao carregar modelo: {e}")
@@ -69,7 +76,19 @@ class DDoSDetector:
             self.label_encoder = None
 
     def add_packet(self, packet_data):
-        self.packet_queue.put(packet_data)
+        """
+        Normaliza chaves recebidas e enfileira.
+        Aceita tanto 'time' quanto 'Time', 'protocol' ou 'Protocol', etc.
+        """
+        normalized = {
+            "Time": packet_data.get("Time") or packet_data.get("time"),
+            "Length": packet_data.get("Length") or packet_data.get("length"),
+            "Source": packet_data.get("Source") or packet_data.get("source"),
+            "Destination": packet_data.get("Destination") or packet_data.get("destination"),
+            "Protocol": packet_data.get("Protocol") or packet_data.get("protocol"),
+            "Info": packet_data.get("Info") or packet_data.get("info"),
+        }
+        self.packet_queue.put(normalized)
 
     def _process_window(self):
         if not self.packet_buffer:
