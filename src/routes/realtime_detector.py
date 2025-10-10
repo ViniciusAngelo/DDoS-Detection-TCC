@@ -7,25 +7,15 @@ import threading
 import queue
 import time
 
-# Detecta ambiente
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+from pathlib import Path
 
-# Caminhos padrões relativos
-MODEL_PATH = os.path.join(BASE_DIR, "ddos_model_v28.pkl")
-ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder_v28.pkl")
+THIS_DIR = Path(__file__).resolve().parent  # src/routes
+BASE_DIR = THIS_DIR.parent  # src/
+MODEL_PATH = (BASE_DIR / "ddos_model_v28.pkl").as_posix()
+ENCODER_PATH = (BASE_DIR / "label_encoder_v28.pkl").as_posix()
 
-# Se estiver em ambiente Render, ajusta o path
-if not os.path.exists(MODEL_PATH):
-    render_base = "/opt/render/project/src/src"
-    model_render = os.path.join(render_base, "ddos_model_v28.pkl")
-    encoder_render = os.path.join(render_base, "label_encoder_v28.pkl")
-
-    if os.path.exists(model_render) and os.path.exists(encoder_render):
-        MODEL_PATH = model_render
-        ENCODER_PATH = encoder_render
-
-print(f"[INIT] MODEL_PATH = {MODEL_PATH}")
-print(f"[INIT] ENCODER_PATH = {ENCODER_PATH}")
+print("MODEL_PATH:", MODEL_PATH, "exists?:", os.path.exists(MODEL_PATH))
+print("ENCODER_PATH:", ENCODER_PATH, "exists?:", os.path.exists(ENCODER_PATH))
 
 class DDoSDetector:
     def __init__(self, window_size=1.0):
@@ -49,22 +39,32 @@ class DDoSDetector:
         }
         self.stats_lock = threading.Lock()
 
+    def _find_file_upwards(filename, max_up=4):
+        p = Path(__file__).resolve()
+        for _ in range(max_up):
+            candidate = p.parent / filename
+            if candidate.exists():
+                return candidate
+            p = p.parent
+        # fallback: try cwd
+        candidate = Path.cwd() / filename
+        if candidate.exists():
+            return candidate
+        return None
+
     def load_model(self):
         try:
-            self.model = joblib.load(MODEL_PATH)
-            self.label_encoder = joblib.load(ENCODER_PATH)
-            print(f"DDoSDetector: Modelo '{MODEL_PATH}' e encoder '{ENCODER_PATH}' carregados com sucesso!")
-        except FileNotFoundError as e:
-            print(
-                f"DDoSDetector: ERRO - Arquivo de modelo não encontrado.\n"
-                f"  MODEL_PATH: {MODEL_PATH}\n"
-                f"  ENCODER_PATH: {ENCODER_PATH}\n"
-                f"  Detalhe: {e}"
-            )
-            self.model = None
-            self.label_encoder = None
+            found_model = self._find_file_upwards("ddos_model_v28.pkl")
+            found_encoder = self._find_file_upwards("label_encoder_v28.pkl")
+
+            if not found_model or not found_encoder:
+                raise FileNotFoundError(f"Model or encoder not found. Tried: model={found_model}, encoder={found_encoder}")
+
+            self.model = joblib.load(found_model)
+            self.label_encoder = joblib.load(found_encoder)
+            print(f"DDoSDetector: Modelo '{found_model}' e encoder '{found_encoder}' carregados com sucesso!")
         except Exception as e:
-            print(f"DDoSDetector: Erro ao carregar modelo: {e}")
+            print(f"DDoSDetector: ERRO ao carregar modelo: {e}")
             self.model = None
             self.label_encoder = None
 

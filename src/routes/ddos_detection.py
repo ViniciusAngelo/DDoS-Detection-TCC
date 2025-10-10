@@ -34,7 +34,17 @@ def detect_packet():
     if not packet_data:
         return jsonify({"error": "Dados do pacote ausentes"}), 400
 
-    detector.add_packet(packet_data)
+    # Normaliza chaves para o formato esperado pelo Detector
+    normalized = {
+        "Time": packet_data.get("time") or packet_data.get("Time"),
+        "Length": packet_data.get("length") or packet_data.get("Length"),
+        "Source": packet_data.get("source") or packet_data.get("Source"),
+        "Destination": packet_data.get("destination") or packet_data.get("Destination"),
+        "Protocol": packet_data.get("protocol") or packet_data.get("Protocol"),
+        "Info": packet_data.get("info") or packet_data.get("Info"),
+    }
+
+    detector.add_packet(normalized)
 
     return jsonify({"message": "Pacote recebido para análise", "timestamp": datetime.now().isoformat()})
 
@@ -56,12 +66,12 @@ def simulate_traffic_api():
 
     for _, row in sample_data.iterrows():
         packet_data = {
-            "time": row["Time"],
-            "length": row["Length"],
-            "source": row["Source"],
-            "destination": row["Destination"],
-            "protocol": row["Protocol"],
-            "info": row["Info"]
+            "Time": row["Time"],
+            "Length": row["Length"],
+            "Source": row["Source"],
+            "Destination": row["Destination"],
+            "Protocol": row["Protocol"],
+            "Info": row["Info"]
         }
         detector.add_packet(packet_data)
         simulated_count += 1
