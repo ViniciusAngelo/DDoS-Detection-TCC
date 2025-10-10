@@ -7,9 +7,25 @@ import threading
 import queue
 import time
 
+# Detecta ambiente
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+# Caminhos padrões relativos
 MODEL_PATH = os.path.join(BASE_DIR, "ddos_model_v28.pkl")
 ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder_v28.pkl")
+
+# Se estiver em ambiente Render, ajusta o path
+if not os.path.exists(MODEL_PATH):
+    render_base = "/opt/render/project/src/src"
+    model_render = os.path.join(render_base, "ddos_model_v28.pkl")
+    encoder_render = os.path.join(render_base, "label_encoder_v28.pkl")
+
+    if os.path.exists(model_render) and os.path.exists(encoder_render):
+        MODEL_PATH = model_render
+        ENCODER_PATH = encoder_render
+
+print(f"[INIT] MODEL_PATH = {MODEL_PATH}")
+print(f"[INIT] ENCODER_PATH = {ENCODER_PATH}")
 
 class DDoSDetector:
     def __init__(self, window_size=1.0):
@@ -40,13 +56,15 @@ class DDoSDetector:
             print(f"DDoSDetector: Modelo '{MODEL_PATH}' e encoder '{ENCODER_PATH}' carregados com sucesso!")
         except FileNotFoundError as e:
             print(
-                "DDoSDetector: ERRO CRÍTICO - Arquivo de modelo ou encoder não encontrado:\n"
-                f"  MODEL_PATH: {MODEL_PATH}\n  ENCODER_PATH: {ENCODER_PATH}\n  Detalhe: {e}"
+                f"DDoSDetector: ERRO - Arquivo de modelo não encontrado.\n"
+                f"  MODEL_PATH: {MODEL_PATH}\n"
+                f"  ENCODER_PATH: {ENCODER_PATH}\n"
+                f"  Detalhe: {e}"
             )
             self.model = None
             self.label_encoder = None
         except Exception as e:
-            print(f"DDoSDetector: Erro ao carregar modelo ou encoder: {e}")
+            print(f"DDoSDetector: Erro ao carregar modelo: {e}")
             self.model = None
             self.label_encoder = None
 
