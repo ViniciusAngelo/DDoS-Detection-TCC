@@ -5,4 +5,4 @@ scikit-learn
 joblib
 numpy
 requests
-#flask-sqlalchemy
+flask-sqlalchemy
