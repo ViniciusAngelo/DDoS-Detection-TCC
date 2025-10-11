@@ -13,7 +13,7 @@ MODEL_PATH = os.path.join(BASE_DIR, "ddos_model_v28.pkl")
 ENCODER_PATH = os.path.join(BASE_DIR, "label_encoder_v28.pkl")
 
 class DDoSDetector:
-    def __init__(self, window_size=10.0):
+    def __init__(self, window_size=1.0):
         self.model = None
         self.label_encoder = None
         self.load_model()
