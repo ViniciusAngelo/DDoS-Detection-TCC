@@ -97,7 +97,7 @@ class DDoSDetector:
         fragmented_packet_count = int(df_window['Is_Fragmented'].sum())
         avg_packet_length = float(df_window['Length'].mean()) if num_packets_in_window > 0 else 0.0
 
-        NORMAL_THRESHOLD = 1
+        NORMAL_THRESHOLD = 10
         attack_type = "Normal" 
 
         is_potentially_attack = (tcp_packets > NORMAL_THRESHOLD or 
