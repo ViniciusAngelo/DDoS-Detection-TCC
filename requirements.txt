@@ -1,8 +1,8 @@
 flask
 flask-cors
-pandas
-scikit-learn
-joblib
-numpy
+pandas==2.3.2
+scikit-learn==1.7.1
+joblib==1.5.2
+numpy==2.3.2
 requests
 flask-sqlalchemy
